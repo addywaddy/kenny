@@ -1,0 +1,53 @@
+h1 {
+  text-decoration: underline;
+}
+.grid {
+  text-align: center;
+  margin: 0 auto;
+  position: relative;
+  float: left;
+  background: #516E8E;
+  background: -webkit-linear-gradient(top, #516e8e, #516e8e);
+}
+.row {
+  float: left;
+  width: 1400px;
+}
+.cell {
+  float: left;
+  height: 70px;
+  width: 70px;
+  background-repeat: no-repeat;
+  background-position: bottom;
+}
+.cell.ground {
+  background-image: url(/img/tiles/ground.png);
+}
+.cell.bridge {
+  background-image: url(/img/tiles/bridge.png);
+  background-repeat: no-repeat;
+}
+.cell.fence {
+  background-image: url(/img/tiles/fence.png);
+}
+.cell.lava {
+  background-image: url(/img/tiles/lava.png);
+}
+.cell.water {
+  background-image: url(/img/tiles/water.png);
+}
+.cell.spikes {
+  background-image: url(/img/tiles/spikes.png);
+}
+.cell.exit {
+  background-image: url(/img/tiles/bonus.png);
+}
+.hero {
+  z-index: 1;
+  display: inline-block;
+  width: 70px;
+  height: 92px;
+  position: absolute;
+  background-image: url(/img/tiles/character/sheet/walk_sheet.png);
+  background-repeat: no-repeat;
+}
