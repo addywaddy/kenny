@@ -7,9 +7,9 @@
   (.log js/console obj))
 
 (def app-state (atom {:text "Hello Chestnut!"
-                      :hero {
+                      :hero {:move false
                              :position {:bottom 211 :left 209}
-                             :jump-time nil
+                             :jump false
                              }
 
                       :grid [[0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0]
@@ -56,7 +56,7 @@
 
 (defn gravity [app]
   (let [dy (get-in @app [:hero :position :bottom])
-        t (get-in @app [:hero :jump-time])
+        t (get-in @app [:hero :jump])
         dt (/ (- (.getTime (js/Date.)) t) 1000)
         vforce (* v dt)
         gforce (/ (* g dt dt) 2)
@@ -75,15 +75,16 @@
     (will-mount [_]
       (js/setInterval
        (fn []
-         (when (get-in @app [:hero :jump-time])
+         (when (get-in @app [:hero :jump])
            (let [height (gravity app)]
              (when (= height 70)
-               (om/update! app [:hero :jump-time] nil))
+               (om/update! app [:hero :jump] false))
              (om/update! app [:hero :position :bottom] height)
              ))
-
-
-
+         (when (= :left (get-in @app [:hero :move]))
+           (om/transact! app [:hero :position :left] (fn [old] (+ old 5))))
+         (when (= :right (get-in @app [:hero :move]))
+           (om/transact! app [:hero :position :left] (fn [old] (- old 5))))
          ) (/ 1000 60)))
     om/IRenderState
     (render-state [this state]
@@ -123,16 +124,22 @@
        dom/div nil
        (om/build-all row grid)))))
 
-(defn move-hero! [e app]
-  (console-log (get-in @app [:hero :jump-time]))
+(defn start-moving [e app]
   (condp = (aget e "keyCode")
-    88 (om/transact! app [:hero :position :left] (fn [i] (+ i 10)))
-    90 (om/transact! app [:hero :position :left] (fn [i] (- i 10)))
-    32 (when-not (get-in @app [:hero :jump-time])
-         (om/update! app [:hero :jump-time] (.getTime (js/Date.))))
+    88 (om/update! app [:hero :move] :left)
+    90 (om/update! app [:hero :move] :right)
+    32 (when-not (get-in @app [:hero :jump])
+         (om/update! app [:hero :jump] (.getTime (js/Date.))))
     nil
     )
+  )
 
+(defn stop-moving [e app]
+  (condp = (aget e "keyCode")
+    88 (om/update! app [:hero :move] false)
+    90 (om/update! app [:hero :move] false)
+    nil
+    )
   )
 
 (defn main []
@@ -141,7 +148,7 @@
       (reify
         om/IRender
         (render [_]
-          (dom/div #js {:className "grid" :tabIndex 0 :onKeyDown (fn [e] (move-hero! e app))}
+          (dom/div #js {:className "grid" :tabIndex 0 :onKeyUp (fn [e] (stop-moving e app)) :onKeyDown (fn [e] (start-moving e app))}
                    (om/build hero app)
                    (om/build grid (:grid app))))))
     app-state
