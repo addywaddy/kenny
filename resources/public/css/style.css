@@ -50,4 +50,17 @@ h1 {
   position: absolute;
   background-image: url(/img/tiles/character/sheet/walk_sheet.png);
   background-repeat: no-repeat;
+  background-position: 0px 0px;
+}
+.hero.left {
+  transform: scaleX(-1);
+}
+.hero.step-0 {
+  background-position: 0px 0px;
+}
+.hero.step-1 {
+  background-position: -70px 0px;
+}
+.hero.step-2 {
+  background-position: -148px 0px;
 }
