@@ -18,8 +18,8 @@
                              }
 
                       :grid [[0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0]
-                             [1 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0]
-                             [1 1 1 1 0 1 1 0 0 0 0 0 0 0 0 0 0 0 0 0]
+                             [0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0]
+                             [0 1 1 1 0 1 1 0 0 0 0 0 0 0 0 0 0 0 0 0]
                              [0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0]
                              [0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0]
                              [0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0]
@@ -45,7 +45,7 @@
         hero-feet-offset 20]
     [
      [(- 9 (floor (/ bottom 70))) (floor (/ (+ left 20) 70))]
-     [(- 9 (floor (/ bottom 70))) (floor (/ (+ left 50) 70))]
+     [(- 9 (floor (/ bottom 70))) (floor (/ (+ left 54) 70))]
      ]
     ))
 
@@ -56,52 +56,29 @@
          (get-in app (into [:grid] right))
          )))
 
-(def g 2000)
-(def v 1000)
-
-(defn is-solid? [app [grid-x grid-y]]
-  (>= (get-in app [:grid (- 9 grid-y) grid-x]) 1)
-  )
-
-(defn current-standing-height []
-  70)
-
-(def gravitational-force 10)
-
-(defn beneath [position]
+(defn beneath-1px [position]
   (let [{:keys [left bottom]} position]
     {:left left :bottom (- bottom 1)}
-  ))
+    ))
+
+(defn left-1px [position]
+  (let [{:keys [left bottom]} position]
+    {:left (- left 1) :bottom bottom}
+    ))
+
+(defn right-1px [position]
+  (let [{:keys [left bottom]} position]
+    {:left (+ left 1) :bottom bottom}
+    ))
 
 (defn vertical-position [app]
   (let [current-vertical (get-in app [:hero :position :bottom])
-        current-block-no (most-supportive-block (beneath (get-in app [:hero :position])))]
+        current-block-no (most-supportive-block (beneath-1px (get-in app [:hero :position])))]
     (if (>= current-block-no 1)
       current-vertical
       (- current-vertical 1)
       )
     ))
-
-(defn gravity [app]
-  (let [dy (get-in @app [:hero :position :bottom])
-        t (get-in @app [:hero :jump])
-        dt (/ (- (.getTime (js/Date.)) t) 1000)
-        vforce (* v dt)
-        gforce (/ (* g dt dt) 2)
-        gv (/ (* g dt) 2)
-        height (+ (- vforce gforce) (current-standing-height))
-        position (get-in @app [:hero :position])
-        ]
-    (if (or
-         (is-solid? @app (first (hero-feet-coords position)))
-         (is-solid? @app (last (hero-feet-coords position)))
-         )
-      (* 70  (last (first (hero-feet-coords @app))))
-      70
-      height
-      ))
-  )
-
 
 (defn step-class [app]
   (let [left-offset (get-in app [:hero :position :left])]
@@ -120,12 +97,11 @@
     ))
 
 (defn can-move [direction app]
-  (let [[left right] (hero-feet-coords (get-in app [:hero :position]))]
+  (let [position (get-in app [:hero :position])]
     (condp = direction
-      :left (= 0 (get-in app (into [:grid] left)))
-    :right (= 0 (get-in app (into [:grid] right))))
-    )
-  )
+      :left (= 0 (get-in app (into [:grid] (first (hero-feet-coords (left-1px position))))))
+      :right (= 0 (get-in app (into [:grid] (last (hero-feet-coords (right-1px position)))))))
+    ))
 
 (defn hero [app owner]
   (reify
