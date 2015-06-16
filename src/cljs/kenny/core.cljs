@@ -1,6 +1,11 @@
 (ns kenny.core
   (:require [om.core :as om :include-macros true]
-            [om.dom :as dom :include-macros true]))
+            [om.dom :as dom :include-macros true]
+            [cljs.core.async :as async :refer[<! chan sliding-buffer put! close! timeout]])
+
+  (:require-macros
+   [cljs.core.async.macros :refer [go-loop go]]))
+
 (enable-console-print!)
 
 (defn console-log [obj]
@@ -8,13 +13,13 @@
 
 (def app-state (atom {:text "Hello Chestnut!"
                       :hero {:move false
-                             :position {:bottom 560 :left 0}
+                             :position {:bottom 560 :left 70}
                              :jump false
                              }
 
                       :grid [[0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0]
-                             [0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0]
-                             [1 1 1 1 1 1 1 0 0 0 0 0 0 0 0 0 0 0 0 0]
+                             [1 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0]
+                             [1 1 1 1 0 1 1 0 0 0 0 0 0 0 0 0 0 0 0 0]
                              [0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0]
                              [0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0]
                              [0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0]
@@ -34,9 +39,9 @@
   #js {:bottom (get-in app [:hero :position :bottom])
        :left (get-in app [:hero :position :left])})
 
-(defn hero-feet-coords [app]
-  (let [bottom (get-in app [:hero :position :bottom])
-        left (get-in app [:hero :position :left])
+(defn hero-feet-coords [position]
+  (let [bottom (position :bottom)
+        left (position :left)
         hero-feet-offset 20]
     [
      [(- 9 (floor (/ bottom 70))) (floor (/ (+ left 20) 70))]
@@ -44,8 +49,9 @@
      ]
     ))
 
-(defn most-supportive-block [app]
-  (let [[left right] (hero-feet-coords app)]
+(defn most-supportive-block [position]
+  (let [[left right] (hero-feet-coords position)
+        app @app-state]
     (max (get-in app (into [:grid] left))
          (get-in app (into [:grid] right))
          )))
@@ -62,16 +68,19 @@
 
 (def gravitational-force 10)
 
-(defn on-solid-ground? [app]
-  true)
+(defn beneath [position]
+  (let [{:keys [left bottom]} position]
+    {:left left :bottom (- bottom 1)}
+  ))
 
 (defn vertical-position [app]
   (let [current-vertical (get-in app [:hero :position :bottom])
-        current-block-no (most-supportive-block app)]
+        current-block-no (most-supportive-block (beneath (get-in app [:hero :position])))]
     (if (>= current-block-no 1)
       current-vertical
       (- current-vertical 1)
-  )))
+      )
+    ))
 
 (defn gravity [app]
   (let [dy (get-in @app [:hero :position :bottom])
@@ -81,10 +90,11 @@
         gforce (/ (* g dt dt) 2)
         gv (/ (* g dt) 2)
         height (+ (- vforce gforce) (current-standing-height))
+        position (get-in @app [:hero :position])
         ]
     (if (or
-         (is-solid? @app (first (hero-feet-coords @app)))
-         (is-solid? @app (last (hero-feet-coords @app)))
+         (is-solid? @app (first (hero-feet-coords position)))
+         (is-solid? @app (last (hero-feet-coords position)))
          )
       (* 70  (last (first (hero-feet-coords @app))))
       70
@@ -109,18 +119,29 @@
       )
     ))
 
+(defn can-move [direction app]
+  (let [[left right] (hero-feet-coords (get-in app [:hero :position]))]
+    (condp = direction
+      :left (= 0 (get-in app (into [:grid] left)))
+    :right (= 0 (get-in app (into [:grid] right))))
+    )
+  )
+
 (defn hero [app owner]
   (reify
     om/IWillMount
     (will-mount [_]
-      (js/setInterval
-       (fn []
-         (om/update! app [:hero :position :bottom] (vertical-position @app))
-         (when (= :left (get-in @app [:hero :move]))
-           (om/transact! app [:hero :position :left] (fn [old] (- old 5))))
-         (when (= :right (get-in @app [:hero :move]))
-           (om/transact! app [:hero :position :left] (fn [old] (+ old 5))))
-         ) (/ 1000 60)))
+      (go-loop []
+        (om/update! app [:hero :position :bottom] (vertical-position @app))
+        (when (= :left (get-in @app [:hero :move]))
+          (when (can-move :left @app)
+            (om/transact! app [:hero :position :left] (fn [old] (- old 5)))))
+        (when (= :right (get-in @app [:hero :move]))
+          (when (can-move :right @app)
+            (om/transact! app [:hero :position :left] (fn [old] (+ old 5)))))
+        (<! (timeout (/ 1000 60)))
+        (recur)
+        ))
     om/IRenderState
     (render-state [this state]
       (dom/div #js {:className (hero-classes app) :style (hero-position app)} nil))

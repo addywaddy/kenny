@@ -16,6 +16,7 @@
                  [compojure "1.3.1"]
                  [enlive "1.1.5"]
                  [om "0.8.0-rc1"]
+                 [org.clojure/core.async "0.1.346.0-17112a-alpha"]
                  [environ "1.0.0"]]
 
   :plugins [[lein-cljsbuild "1.0.3"]
