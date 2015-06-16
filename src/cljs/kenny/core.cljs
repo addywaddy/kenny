@@ -14,7 +14,7 @@
 (def app-state (atom {:text "Hello Chestnut!"
                       :hero {:move false
                              :position {:bottom 560 :left 70}
-                             :jump false
+                             :jump {:time nil :bottom nil}
                              }
 
                       :grid [[0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0]
@@ -58,7 +58,7 @@
 
 (defn beneath-1px [position]
   (let [{:keys [left bottom]} position]
-    {:left left :bottom (- bottom 1)}
+    {:left left :bottom (- bottom 5)}
     ))
 
 (defn left-1px [position]
@@ -71,12 +71,50 @@
     {:left (+ left 1) :bottom bottom}
     ))
 
+(defn gravity [app]
+  (let [dy (get-in @app [:hero :position :bottom])
+        t (get-in @app [:hero :jump :start])
+        dt (/ (- (.getTime (js/Date.)) t) 1000)
+        vforce (* v dt)
+        gforce (/ (* g dt dt) 2)
+        gv (/ (* g dt) 2)
+        height (+ (- vforce gforce) (current-standing-height))
+        position (get-in @app [:hero :position])
+        ]
+    (if (or
+         (is-solid? @app (first (hero-feet-coords position)))
+         (is-solid? @app (last (hero-feet-coords position)))
+         )
+      (* 70  (last (first (hero-feet-coords @app))))
+      70
+      height
+      ))
+  )
+
+(defn new-gravity [current-vertical jump-time app]
+  (let [dy (get-in app [:hero :position :bottom])
+        starting-bottom (get-in app [:hero :jump :bottom])
+        dt (/ (- (.getTime (js/Date.)) jump-time) 1000)
+        vforce (* 500 dt)
+        gforce (/ (* 1000 dt dt) 2)
+        gv (/ (* 1000 dt) 2)
+        height (+ (- vforce gforce) starting-bottom)
+        ]
+    ;; (if hit-block-above) -> reset :hero :jump :start
+    ;; (if hit-block-below) -> reset :hero :jump :start
+    height
+    )
+  )
+
 (defn vertical-position [app]
   (let [current-vertical (get-in app [:hero :position :bottom])
         current-block-no (most-supportive-block (beneath-1px (get-in app [:hero :position])))]
-    (if (>= current-block-no 1)
-      current-vertical
-      (- current-vertical 1)
+    (if-let [jump-time (get-in app [:hero :jump :start])]
+      (new-gravity current-vertical jump-time app)
+      (if (>= current-block-no 1)
+        current-vertical
+        (- current-vertical 5)
+        )
       )
     ))
 
@@ -160,8 +198,9 @@
   (condp = (aget e "keyCode")
     88 (om/update! app [:hero :move] :right)
     90 (om/update! app [:hero :move] :left)
-    32 (when-not (get-in @app [:hero :jump])
-         (om/update! app [:hero :jump] (.getTime (js/Date.))))
+    32 (when-not (get-in @app [:hero :jump :start])
+         (om/update! app [:hero :jump :start] (.getTime (js/Date.)))
+         (om/update! app [:hero :jump :bottom] (get-in @app [:hero :position :bottom])))
     nil
     )
   )
