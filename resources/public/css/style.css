@@ -12,28 +12,31 @@ h1 {
 .row {
   float: left;
   width: 1400px;
+  position: relative;
+  z-index: 1;
 }
 .cell {
   float: left;
   height: 70px;
   width: 70px;
   background-repeat: no-repeat;
-  background-position: bottom;
+  background-position: left bottom;
 }
 .cell.ground {
   background-image: url(/img/tiles/ground.png);
 }
 .cell.bridge {
   background-image: url(/img/tiles/bridge.png);
-  background-repeat: no-repeat;
 }
 .cell.fence {
   background-image: url(/img/tiles/fence.png);
 }
 .cell.lava {
+  opacity: 0.9;
   background-image: url(/img/tiles/lava.png);
 }
 .cell.water {
+  opacity: 0.8;
   background-image: url(/img/tiles/water.png);
 }
 .cell.spikes {
@@ -43,7 +46,7 @@ h1 {
   background-image: url(/img/tiles/bonus.png);
 }
 .hero {
-  z-index: 1;
+  z-index: 0;
   display: inline-block;
   width: 70px;
   height: 92px;

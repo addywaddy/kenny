@@ -11,23 +11,46 @@
 (defn console-log [obj]
   (.log js/console obj))
 
+(def grid-content [
+           [0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0]
+           [0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0]
+           [0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0]
+           [0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0]
+           [0 0 9 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0]
+           [0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0]
+           [0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0]
+           [0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0]
+           [0 1 4 4 4 4 4 4 4 4 5 5 5 5 5 5 5 5 1 0]
+           [1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1]
+           ])
+
+(defn indices [pred coll]
+  (keep-indexed #(when (pred %2) %1) coll))
+
+(defn contains-hero [row]
+  (some #{9} row)
+  )
+
+(defn is-hero [cell]
+  (= cell 9))
+
+(defn hero-start-position [grid-content]
+  (let [row-index (first (indices contains-hero (reverse grid-content)))
+        row (get (vec (reverse grid-content)) row-index)
+        col (first (indices is-hero row))]
+    (println row)
+    (println col)
+    {:bottom (* row-index 70) :left (* col 70)}
+    )
+  )
+
 (def app-state (atom {:text "Hello Chestnut!"
                       :hero {:move false
-                             :position {:bottom 560 :left 70}
+                             :position (hero-start-position grid-content)
                              :jump {:time nil :bottom nil}
                              }
 
-                      :grid [[0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0]
-                             [0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0]
-                             [0 1 1 1 0 1 1 0 0 0 0 0 0 0 0 0 0 0 0 0]
-                             [0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0]
-                             [0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0]
-                             [0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0]
-                             [0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0]
-                             [0 0 0 0 5 5 4 4 0 0 0 0 0 0 0 0 0 0 0 0]
-                             [1 0 0 1 1 1 1 0 0 0 0 0 0 0 0 0 0 0 0 8]
-                             [1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1]
-                             ]}))
+                      :grid grid-content}))
 
 (defn ceil [i]
   (.ceil js/Math i))
@@ -49,11 +72,11 @@
      ]
     ))
 
+
 (defn most-supportive-block [position]
   (let [[left right] (hero-feet-coords position)
         app @app-state]
-    (max (get-in app (into [:grid] left))
-         (get-in app (into [:grid] right))
+    (some #{1} [(get-in app (into [:grid] left)) (get-in app (into [:grid] right))]
          )))
 
 (defn beneath-1px [position]
@@ -71,47 +94,43 @@
     {:left (+ left 1) :bottom bottom}
     ))
 
-(defn gravity [app]
-  (let [dy (get-in @app [:hero :position :bottom])
-        t (get-in @app [:hero :jump :start])
-        dt (/ (- (.getTime (js/Date.)) t) 1000)
-        vforce (* v dt)
-        gforce (/ (* g dt dt) 2)
-        gv (/ (* g dt) 2)
-        height (+ (- vforce gforce) (current-standing-height))
-        position (get-in @app [:hero :position])
-        ]
-    (if (or
-         (is-solid? @app (first (hero-feet-coords position)))
-         (is-solid? @app (last (hero-feet-coords position)))
-         )
-      (* 70  (last (first (hero-feet-coords @app))))
-      70
-      height
-      ))
+(defn on-solid-ground? [position]
+  (= 1 (most-supportive-block (beneath-1px position)))
+  )
+
+(defn move-left? [app position]
+  (not= 1 (get-in app (into [:grid] (first (hero-feet-coords (left-1px position))))))
+  )
+
+(defn move-right? [app position]
+  (not= 1 (get-in app (into [:grid] (second (hero-feet-coords (right-1px position))))))
   )
 
 (defn new-gravity [current-vertical jump-time app]
-  (let [dy (get-in app [:hero :position :bottom])
-        starting-bottom (get-in app [:hero :jump :bottom])
+  (let [last-bottom (get-in @app [:hero :position :bottom])
+        initial-bottom (get-in @app [:hero :jump :bottom])
         dt (/ (- (.getTime (js/Date.)) jump-time) 1000)
-        vforce (* 500 dt)
+        vforce (* 530 dt)
         gforce (/ (* 1000 dt dt) 2)
         gv (/ (* 1000 dt) 2)
-        height (+ (- vforce gforce) starting-bottom)
+        height (+ (- vforce gforce) initial-bottom)
         ]
-    ;; (if hit-block-above) -> reset :hero :jump :start
-    ;; (if hit-block-below) -> reset :hero :jump :start
-    height
+    (if (< height last-bottom)
+      (do
+        (om/update! app [:hero :jump :start] nil)
+        (* 70 (quot height 70))
+        )
+      height
+      )
     )
   )
 
 (defn vertical-position [app]
-  (let [current-vertical (get-in app [:hero :position :bottom])
-        current-block-no (most-supportive-block (beneath-1px (get-in app [:hero :position])))]
-    (if-let [jump-time (get-in app [:hero :jump :start])]
+  (let [current-vertical (get-in @app [:hero :position :bottom])
+        current-block-no (most-supportive-block (beneath-1px (get-in @app [:hero :position])))]
+    (if-let [jump-time (get-in @app [:hero :jump :start])]
       (new-gravity current-vertical jump-time app)
-      (if (>= current-block-no 1)
+      (if (on-solid-ground? (get-in @app [:hero :position]))
         current-vertical
         (- current-vertical 5)
         )
@@ -137,8 +156,8 @@
 (defn can-move [direction app]
   (let [position (get-in app [:hero :position])]
     (condp = direction
-      :left (= 0 (get-in app (into [:grid] (first (hero-feet-coords (left-1px position))))))
-      :right (= 0 (get-in app (into [:grid] (last (hero-feet-coords (right-1px position)))))))
+      :left (move-left? app position)
+      :right (move-right? app position))
     ))
 
 (defn hero [app owner]
@@ -146,7 +165,7 @@
     om/IWillMount
     (will-mount [_]
       (go-loop []
-        (om/update! app [:hero :position :bottom] (vertical-position @app))
+        (om/update! app [:hero :position :bottom] (vertical-position app))
         (when (= :left (get-in @app [:hero :move]))
           (when (can-move :left @app)
             (om/transact! app [:hero :position :left] (fn [old] (- old 5)))))
@@ -176,6 +195,8 @@
   (reify
     om/IRender
     (render [this]
+      (when (= cell 9)
+        )
       (dom/div #js {:className (str "cell " (id->tile-class cell))} ""))))
 
 (defn row [row owner]
@@ -198,7 +219,7 @@
   (condp = (aget e "keyCode")
     88 (om/update! app [:hero :move] :right)
     90 (om/update! app [:hero :move] :left)
-    32 (when-not (get-in @app [:hero :jump :start])
+    32 (when (and (on-solid-ground? (get-in @app [:hero :position])) (nil? (get-in @app [:hero :jump :start])))
          (om/update! app [:hero :jump :start] (.getTime (js/Date.)))
          (om/update! app [:hero :jump :bottom] (get-in @app [:hero :position :bottom])))
     nil
@@ -219,8 +240,9 @@
       (reify
         om/IRender
         (render [_]
-          (dom/div #js {:className "grid" :tabIndex 0 :onKeyUp (fn [e] (stop-moving e app)) :onKeyDown (fn [e] (start-moving e app))}
+          (dom/div #js {:className "grid" :tabIndex 0 :onKeyUp (fn [e] (stop-moving e app)) :onKeyDown (fn [e] (start-moving e app) (.preventDefault e))}
                    (om/build hero app)
-                   (om/build grid (:grid app))))))
+                   (om/build grid (:grid app))
+                   ))))
     app-state
     {:target (. js/document (getElementById "app"))}))
