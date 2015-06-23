@@ -19,7 +19,7 @@
            [0 0 9 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0]
            [0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0]
            [0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0]
-           [0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0]
+           [0 0 0 0 0 0 1 1 1 0 0 0 0 0 0 0 0 0 0 0]
            [0 1 4 4 4 4 4 4 4 4 5 5 5 5 5 5 5 5 1 0]
            [1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1]
            ])
@@ -46,10 +46,11 @@
 
 (def app-state (atom {:text "Hello Chestnut!"
                       :hero {:move false
+                             :life 100
                              :position (hero-start-position grid-content)
                              :jump {:time nil :bottom nil}
                              }
-
+                      :game-over false
                       :grid grid-content}))
 
 (defn ceil [i]
@@ -72,6 +73,11 @@
      ]
     ))
 
+(defn current-blocks [position]
+  (let [[left right] (hero-feet-coords position)
+        app @app-state]
+    [(get-in app (into [:grid] left)) (get-in app (into [:grid] right))]
+          ))
 
 (defn most-supportive-block [position]
   (let [[left right] (hero-feet-coords position)
@@ -160,21 +166,37 @@
       :right (move-right? app position))
     ))
 
+(defn in-lava [app]
+  (let [position (get-in app [:hero :position])]
+    (some #{4} (current-blocks position))
+    )
+  )
+
 (defn hero [app owner]
   (reify
     om/IWillMount
     (will-mount [_]
-      (go-loop []
+      (if (>= 0 (get-in @app [:hero :life]))
+        (om/update! app [:game-over] true)
+        (go-loop []
         (om/update! app [:hero :position :bottom] (vertical-position app))
         (when (= :left (get-in @app [:hero :move]))
           (when (can-move :left @app)
+            (when (in-lava @app)
+              (om/transact! app [:hero :life] (fn [old] (- old 1)))
+              )
             (om/transact! app [:hero :position :left] (fn [old] (- old 5)))))
         (when (= :right (get-in @app [:hero :move]))
           (when (can-move :right @app)
+            (when (in-lava @app)
+              (om/transact! app [:hero :life] (fn [old] (- old 1)))
+              )
             (om/transact! app [:hero :position :left] (fn [old] (+ old 5)))))
         (<! (timeout (/ 1000 60)))
         (recur)
-        ))
+        )
+        )
+      )
     om/IRenderState
     (render-state [this state]
       (dom/div #js {:className (hero-classes app) :style (hero-position app)} nil))
@@ -215,6 +237,13 @@
        dom/div nil
        (om/build-all row grid)))))
 
+(defn status-bar [hero owner]
+  (reify
+    om/IRender
+    (render [this]
+      (dom/h1 nil (hero :life))))
+  )
+
 (defn start-moving [e app]
   (condp = (aget e "keyCode")
     88 (om/update! app [:hero :move] :right)
@@ -240,9 +269,15 @@
       (reify
         om/IRender
         (render [_]
-          (dom/div #js {:className "grid" :tabIndex 0 :onKeyUp (fn [e] (stop-moving e app)) :onKeyDown (fn [e] (start-moving e app) (.preventDefault e))}
+          (console-log (get-in app [:hero :life]))
+          (if (>= 0 (get-in app [:hero :life]))
+            (dom/h1 nil "GAME OVER")
+            (dom/div #js {:className "grid" :tabIndex 0 :onKeyUp (fn [e] (stop-moving e app)) :onKeyDown (fn [e] (start-moving e app) (.preventDefault e))}
+                   (om/build status-bar (:hero app))
                    (om/build hero app)
                    (om/build grid (:grid app))
-                   ))))
+                   )
+            )
+          )))
     app-state
     {:target (. js/document (getElementById "app"))}))
