@@ -9,16 +9,19 @@
 (enable-console-print!)
 
 (defn console-log [obj]
-  (.log js/console obj))
+  (.log js/console (clj->js obj)))
+
+(defn noprintln [obj]
+  obj)
 
 (def grid-content [
            [0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0]
            [0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0]
            [0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0]
            [0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0]
-           [0 0 9 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0]
            [0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0]
            [0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0]
+           [0 0 0 0 0 0 9 0 0 0 0 0 0 0 0 0 0 0 0 0]
            [0 0 0 0 0 0 1 1 1 0 0 0 0 0 0 0 0 0 0 0]
            [0 1 4 4 4 4 4 4 4 4 5 5 5 5 5 5 5 5 1 0]
            [1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1]
@@ -123,10 +126,31 @@
         ]
     (if (< height last-bottom)
       (do
-        (om/update! app [:hero :jump :start] nil)
         (* 70 (quot height 70))
         )
       height
+      )
+    )
+  )
+
+(defn gravity [current-vertical jump-time hero]
+  (let [last-bottom (get-in hero [:position :bottom])
+        initial-bottom (get-in hero [:jump :bottom])
+        dt (/ (- (.getTime (js/Date.)) jump-time) 1000)
+        vforce (* 530 dt)
+        gforce (/ (* 1000 dt dt) 2)
+        gv (/ (* 1000 dt) 2)
+        height (+ (- vforce gforce) initial-bottom)
+        ]
+    (console-log (hero :jump))
+    (console-log (hero :position))
+     (console-log (* 70 (quot height 70)))
+    (if (< last-bottom height)
+      (update-in hero [:position :bottom] (fn [_] (* 70 (quot height 70))))
+      (do
+        (update-in hero [:position :bottom] (fn [_] height))
+        (update-in hero [:jump :start] (fn [_] false))
+        )
       )
     )
   )
@@ -160,6 +184,7 @@
     ))
 
 (defn can-move [direction app]
+  (println direction)
   (let [position (get-in app [:hero :position])]
     (condp = direction
       :left (move-left? app position)
@@ -172,6 +197,66 @@
     )
   )
 
+(defn move-horizontally [hero]
+  (let [left-position (get-in hero [:position :left])]
+    (condp = (hero :move)
+      :left (when (can-move :left @app-state)
+              (update-in hero [:position :left] - 5)
+              )
+      :right (when (can-move :left @app-state)
+               (update-in hero [:position :left] + 5)
+               )
+      hero
+      )))
+
+(defn move-vertically [hero]
+  (let [current-vertical (get-in hero [:position :bottom])
+        current-block-no (most-supportive-block (beneath-1px (get-in hero [:position])))
+        jump-time (get-in hero [:jump :start])]
+    (if jump-time
+      (gravity current-vertical jump-time hero)
+      (if (on-solid-ground? (get-in hero [:position]))
+        hero
+        (update-in hero [:position :bottom] - 5)
+        )
+      )
+    )
+  )
+
+(defn x-move-vertically [hero]
+  (let [current-vertical (get-in hero [:position :bottom])
+        current-block-no (most-supportive-block (beneath-1px (get-in hero [:position])))
+        jump-time (get-in hero [:jump :start])]
+    (if (on-solid-ground? (get-in hero [:position]))
+      (if jump-time
+        (let [new-hero (update-in hero [:position :bottom] (fn [_] (new-gravity current-vertical jump-time app-state)))]
+          (if (< (get-in new-hero [:position :bottom]) -5)
+            (update-in new-hero [:jump :start] (fn [_] nil))
+            new-hero
+            )
+          )
+        hero
+        )
+
+      )
+
+    ;; (if-let [jump-time (get-in hero [:jump :start])]
+    ;;   (update-in hero [:position :bottom] (fn [_] (new-gravity current-vertical jump-time app-state)))
+    ;;   (if (on-solid-ground? (get-in hero [:position]))
+    ;;     hero
+    ;;     (let [new-hero (update-in hero [:position :bottom] - 5)]
+    ;;       (if (< (get-in new-hero [:position :bottom]) current-vertical)
+    ;;         (println "FALLING")
+    ;;         (update-in new-hero [:jump :start] (fn [_] nil))
+    ;;         new-hero
+    ;;         ))
+    ;;     )
+    ;;   )
+    ))
+
+(defn update-hero [app new-hero]
+  (om/update! app [:hero] new-hero))
+
 (defn hero [app owner]
   (reify
     om/IWillMount
@@ -179,28 +264,42 @@
       (if (>= 0 (get-in @app [:hero :life]))
         (om/update! app [:game-over] true)
         (go-loop []
-        (om/update! app [:hero :position :bottom] (vertical-position app))
-        (when (= :left (get-in @app [:hero :move]))
-          (when (can-move :left @app)
-            (when (in-lava @app)
-              (om/transact! app [:hero :life] (fn [old] (- old 1)))
-              )
-            (om/transact! app [:hero :position :left] (fn [old] (- old 5)))))
-        (when (= :right (get-in @app [:hero :move]))
-          (when (can-move :right @app)
-            (when (in-lava @app)
-              (om/transact! app [:hero :life] (fn [old] (- old 1)))
-              )
-            (om/transact! app [:hero :position :left] (fn [old] (+ old 5)))))
-        (<! (timeout (/ 1000 60)))
-        (recur)
-        )
+
+          (let [new-hero (-> (get-in @app [:hero])
+                              move-horizontally
+
+                              move-vertically
+                              ;;(partial update-hero app)
+                              )]
+            ;;(console-log (new-hero :position))
+            ;;(console-log (new-hero :jump))
+            (om/update! app [:hero] new-hero)
+            )
+
+
+          ;; (om/update! app [:hero :position :bottom] (vertical-position app))
+          ;; (when (= :left (get-in @app [:hero :move]))
+          ;;   (when (can-move :left @app)
+          ;;     (when (in-lava @app)
+          ;;       (om/transact! app [:hero :life] (fn [old] (- old 1)))
+          ;;       )
+          ;;     (om/transact! app [:hero :position :left] (fn [old] (- old 5)))))
+          ;; (when (= :right (get-in @app [:hero :move]))
+          ;;   (when (can-move :right @app)
+          ;;     (when (in-lava @app)
+          ;;       (om/transact! app [:hero :life] (fn [old] (- old 1)))
+          ;;       )
+          ;;     (om/transact! app [:hero :position :left] (fn [old] (+ old 5)))))
+
+          (<! (timeout (/ 1000 60)))
+          (recur)
+          )
         )
       )
     om/IRenderState
     (render-state [this state]
       (dom/div #js {:className (hero-classes app) :style (hero-position app)} nil))
-      ))
+    ))
 
 (def id->tile-class
   {0 nil
@@ -269,7 +368,6 @@
       (reify
         om/IRender
         (render [_]
-          (console-log (get-in app [:hero :life]))
           (if (>= 0 (get-in app [:hero :life]))
             (dom/h1 nil "GAME OVER")
             (dom/div #js {:className "grid" :tabIndex 0 :onKeyUp (fn [e] (stop-moving e app)) :onKeyDown (fn [e] (start-moving e app) (.preventDefault e))}
