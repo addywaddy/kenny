@@ -49,6 +49,8 @@
 
 (def app-state (atom {:text "Hello Chestnut!"
                       :hero {:move false
+                             :dx 0
+                             :dy 0
                              :life 100
                              :position (hero-start-position grid-content)
                              :jump {:time nil :bottom nil}
@@ -76,7 +78,21 @@
      ]
     ))
 
-(defn current-blocks [position]
+(defn vertical-coord [position]
+  (let [bottom (position :bottom)]
+     (floor (/ bottom 70))
+     ))
+
+(defn horizontal-coords [position]
+  (let [left (position :left)]
+    {
+     :left (floor (/ (+ left 20) 70))
+     :right (floor (/ (+ left 54) 70))
+     }
+
+    ))
+
+(defn blocks [position]
   (let [[left right] (hero-feet-coords position)
         app @app-state]
     [(get-in app (into [:grid] left)) (get-in app (into [:grid] right))]
@@ -115,57 +131,10 @@
   (not= 1 (get-in app (into [:grid] (second (hero-feet-coords (right-1px position))))))
   )
 
-(defn new-gravity [current-vertical jump-time app]
-  (let [last-bottom (get-in @app [:hero :position :bottom])
-        initial-bottom (get-in @app [:hero :jump :bottom])
-        dt (/ (- (.getTime (js/Date.)) jump-time) 1000)
-        vforce (* 530 dt)
-        gforce (/ (* 1000 dt dt) 2)
-        gv (/ (* 1000 dt) 2)
-        height (+ (- vforce gforce) initial-bottom)
-        ]
-    (if (< height last-bottom)
-      (do
-        (* 70 (quot height 70))
-        )
-      height
-      )
-    )
-  )
 
-(defn gravity [current-vertical jump-time hero]
-  (let [last-bottom (get-in hero [:position :bottom])
-        initial-bottom (get-in hero [:jump :bottom])
-        dt (/ (- (.getTime (js/Date.)) jump-time) 1000)
-        vforce (* 530 dt)
-        gforce (/ (* 1000 dt dt) 2)
-        gv (/ (* 1000 dt) 2)
-        height (+ (- vforce gforce) initial-bottom)
-        ]
-    (console-log (hero :jump))
-    (console-log (hero :position))
-     (console-log (* 70 (quot height 70)))
-    (if (< last-bottom height)
-      (update-in hero [:position :bottom] (fn [_] (* 70 (quot height 70))))
-      (do
-        (update-in hero [:position :bottom] (fn [_] height))
-        (update-in hero [:jump :start] (fn [_] false))
-        )
-      )
-    )
+(defn moving? [hero]
+  (not= 0 (hero :dx))
   )
-
-(defn vertical-position [app]
-  (let [current-vertical (get-in @app [:hero :position :bottom])
-        current-block-no (most-supportive-block (beneath-1px (get-in @app [:hero :position])))]
-    (if-let [jump-time (get-in @app [:hero :jump :start])]
-      (new-gravity current-vertical jump-time app)
-      (if (on-solid-ground? (get-in @app [:hero :position]))
-        current-vertical
-        (- current-vertical 5)
-        )
-      )
-    ))
 
 (defn step-class [app]
   (let [left-offset (get-in app [:hero :position :left])]
@@ -174,10 +143,10 @@
 
 (defn hero-classes [app]
   (let [
-        left-class (when (= :left (get-in app [:hero :move]))
+        left-class (when (> 0 (get-in app [:hero :dx]))
           "left "
           )]
-    (if (get-in app [:hero :move])
+    (if (moving? (app :hero))
       (str "hero " left-class "step-" (step-class app))
       (str "hero " left-class)
       )
@@ -193,69 +162,84 @@
 
 (defn in-lava [app]
   (let [position (get-in app [:hero :position])]
-    (some #{4} (current-blocks position))
+    (some #{4} (blocks position))
     )
   )
 
 (defn move-horizontally [hero]
   (let [left-position (get-in hero [:position :left])]
-    (condp = (hero :move)
-      :left (when (can-move :left @app-state)
-              (update-in hero [:position :left] - 5)
-              )
-      :right (when (can-move :left @app-state)
-               (update-in hero [:position :left] + 5)
-               )
+    (if (moving? hero)
+      (update-in hero [:position :left] (fn [old-left] (+ old-left (hero :dx))))
       hero
       )))
 
+(defn gravity [current-vertical jump-time hero]
+  (let [last-bottom (get-in hero [:position :bottom])
+        initial-bottom (get-in hero [:jump :bottom])
+        dt (/ (- (.getTime (js/Date.)) jump-time) 1000)
+        vforce (* 1000 dt)
+        gforce (/ (* 2000 dt dt) 2)
+        height (+ (- vforce gforce) initial-bottom)
+        ]
+      (update-in hero [:position :bottom] (fn [_] height))
+
+      )
+  )
+
+;; (defn grav [hero]
+;;   (let [vertical-velocity (get-in hero [:vertical-velocity])]
+;;     (if vertical-velocity
+;;       (let [new-hero (update-in hero [:vertical-velocity] (fn [original] (- original 5)))
+;;             new-velocity (get-in new-hero [:vertical-velocity])]
+;;         (update-in (get-in hero [:position :bottom] (fn [original] (+ original new-velocity))))
+;;         )
+;;       hero
+;;       )
+;;     )
+;;   )
+
 (defn move-vertically [hero]
   (let [current-vertical (get-in hero [:position :bottom])
-        current-block-no (most-supportive-block (beneath-1px (get-in hero [:position])))
         jump-time (get-in hero [:jump :start])]
     (if jump-time
       (gravity current-vertical jump-time hero)
-      (if (on-solid-ground? (get-in hero [:position]))
-        hero
-        (update-in hero [:position :bottom] - 5)
-        )
+      hero
       )
     )
   )
 
-(defn x-move-vertically [hero]
-  (let [current-vertical (get-in hero [:position :bottom])
-        current-block-no (most-supportive-block (beneath-1px (get-in hero [:position])))
-        jump-time (get-in hero [:jump :start])]
-    (if (on-solid-ground? (get-in hero [:position]))
-      (if jump-time
-        (let [new-hero (update-in hero [:position :bottom] (fn [_] (new-gravity current-vertical jump-time app-state)))]
-          (if (< (get-in new-hero [:position :bottom]) -5)
-            (update-in new-hero [:jump :start] (fn [_] nil))
-            new-hero
-            )
-          )
-        hero
-        )
-
+(defn ground-resistance [hero]
+  (let [position (get-in hero [:position])
+        coord-y (vertical-coord position)
+        current-tiles (blocks position)]
+    (if (some #{1} current-tiles)
+      (let [new-hero (update-in hero [:position :bottom] (fn [_] (* (+ 1 coord-y) 70)))]
+        (update-in new-hero [:jump :start] (fn [_] nil)))
+      hero
       )
-
-    ;; (if-let [jump-time (get-in hero [:jump :start])]
-    ;;   (update-in hero [:position :bottom] (fn [_] (new-gravity current-vertical jump-time app-state)))
-    ;;   (if (on-solid-ground? (get-in hero [:position]))
-    ;;     hero
-    ;;     (let [new-hero (update-in hero [:position :bottom] - 5)]
-    ;;       (if (< (get-in new-hero [:position :bottom]) current-vertical)
-    ;;         (println "FALLING")
-    ;;         (update-in new-hero [:jump :start] (fn [_] nil))
-    ;;         new-hero
-    ;;         ))
-    ;;     )
-    ;;   )
     ))
 
-(defn update-hero [app new-hero]
-  (om/update! app [:hero] new-hero))
+(defn block-resistance [hero]
+  (let [position (get-in hero [:position])
+        coords-x (horizontal-coords position)
+        current-tiles (blocks position)]
+    (if (some #{1} current-tiles)
+      (condp = (moving? hero)
+        :left (update-in hero [:position :left] (fn [_] (* (+ (coords-x :left) 1) 70)))
+
+        :right (update-in hero [:position :left] (fn [_] (* (- (coords-x :left) 1) 70))))
+      hero
+      )
+    ))
+
+(defn lava-damage [hero]
+  hero)
+
+(defn spike-damage [hero]
+  hero)
+
+(defn off-screen [hero]
+  hero)
 
 (defn hero [app owner]
   (reify
@@ -265,13 +249,20 @@
         (om/update! app [:game-over] true)
         (go-loop []
 
-          (let [new-hero (-> (get-in @app [:hero])
-                              move-horizontally
+          (let [original-hero (get-in @app [:hero])
+                new-hero (-> original-hero
+                             move-horizontally
+                             ;; move-vertically
+                             ;; lava-damage
+                             ;; spike-damage
+                             ;; off-screen
+                             ;; ground-resistance
+                             ;; block-resistance
 
-                              move-vertically
-                              ;;(partial update-hero app)
-                              )]
-            ;;(console-log (new-hero :position))
+
+                             ;;((partial partial-check original-hero))
+                             )]
+
             ;;(console-log (new-hero :jump))
             (om/update! app [:hero] new-hero)
             )
@@ -345,8 +336,8 @@
 
 (defn start-moving [e app]
   (condp = (aget e "keyCode")
-    88 (om/update! app [:hero :move] :right)
-    90 (om/update! app [:hero :move] :left)
+    88 (om/update! app [:hero :dx] 5)
+    90 (om/update! app [:hero :dx] -5)
     32 (when (and (on-solid-ground? (get-in @app [:hero :position])) (nil? (get-in @app [:hero :jump :start])))
          (om/update! app [:hero :jump :start] (.getTime (js/Date.)))
          (om/update! app [:hero :jump :bottom] (get-in @app [:hero :position :bottom])))
@@ -356,8 +347,8 @@
 
 (defn stop-moving [e app]
   (condp = (aget e "keyCode")
-    88 (om/update! app [:hero :move] false)
-    90 (om/update! app [:hero :move] false)
+    88 (om/update! app [:hero :dx] 0)
+    90 (om/update! app [:hero :dx] 0)
     nil
     )
   )
