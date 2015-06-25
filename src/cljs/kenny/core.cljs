@@ -16,13 +16,13 @@
 
 (def grid-content [
            [0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0]
+           [0 0 0 0 1 0 9 0 0 0 0 0 1 0 0 0 0 0 0 0]
+           [0 0 0 0 1 1 1 1 1 0 1 1 1 0 0 0 0 0 0 0]
            [0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0]
            [0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0]
            [0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0]
            [0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0]
            [0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0]
-           [0 0 0 0 0 0 9 0 0 0 0 0 0 0 0 0 0 0 0 0]
-           [0 0 0 0 0 0 1 1 1 0 0 0 0 0 0 0 0 0 0 0]
            [0 1 4 4 4 4 4 4 4 4 5 5 5 5 5 5 5 5 1 0]
            [1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1]
            ])
@@ -70,8 +70,7 @@
 
 (defn hero-feet-coords [position]
   (let [bottom (position :bottom)
-        left (position :left)
-        hero-feet-offset 20]
+        left (position :left)]
     [
      [(- 9 (floor (/ bottom 70))) (floor (/ (+ left 20) 70))]
      [(- 9 (floor (/ bottom 70))) (floor (/ (+ left 54) 70))]
@@ -131,7 +130,6 @@
   (not= 1 (get-in app (into [:grid] (second (hero-feet-coords (right-1px position))))))
   )
 
-
 (defn moving? [hero]
   (not= 0 (hero :dx))
   )
@@ -186,18 +184,6 @@
       )
   )
 
-;; (defn grav [hero]
-;;   (let [vertical-velocity (get-in hero [:vertical-velocity])]
-;;     (if vertical-velocity
-;;       (let [new-hero (update-in hero [:vertical-velocity] (fn [original] (- original 5)))
-;;             new-velocity (get-in new-hero [:vertical-velocity])]
-;;         (update-in (get-in hero [:position :bottom] (fn [original] (+ original new-velocity))))
-;;         )
-;;       hero
-;;       )
-;;     )
-;;   )
-
 (defn move-vertically [hero]
   (let [current-vertical (get-in hero [:position :bottom])
         jump-time (get-in hero [:jump :start])]
@@ -241,6 +227,36 @@
 (defn off-screen [hero]
   hero)
 
+(defn stop-if-blocked [original-hero new-hero]
+  (let [new-hero-coords (blocks (new-hero :position))]
+    (if (moving? new-hero)
+      (if (> 0 (new-hero :dx))
+        ;; moving left
+        (if (= 1 (first new-hero-coords))
+          (update-in new-hero [:position :left] (fn [_] (get-in original-hero [:position :left])))
+          new-hero
+          )
+        (if (= 1 (last new-hero-coords))
+          (update-in new-hero [:position :left] (fn [_] (get-in original-hero [:position :left])))
+          new-hero
+          )
+        )
+      new-hero
+      )
+    )
+  )
+
+(defn grav [hero]
+  (let [supported (most-supportive-block (hero :position))]
+    ;;(console-log supported)
+    ;;(console-log (hero :position))
+    (if (= 0 supported)
+      (let [new-hero (update-in hero [:dy] - 5)]
+        (update-in hero [:position :bottom] + (new-hero :dy))
+        )
+      hero
+      )))
+
 (defn hero [app owner]
   (reify
     om/IWillMount
@@ -252,6 +268,8 @@
           (let [original-hero (get-in @app [:hero])
                 new-hero (-> original-hero
                              move-horizontally
+                             ((partial stop-if-blocked original-hero))
+                             grav
                              ;; move-vertically
                              ;; lava-damage
                              ;; spike-damage
