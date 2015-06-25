@@ -16,14 +16,14 @@
 
 (def grid-content [
            [0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0]
-           [0 0 0 0 1 0 9 0 0 0 0 0 1 0 0 0 0 0 0 0]
+           [0 0 0 0 1 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0]
            [0 0 0 0 1 1 1 1 1 0 1 1 1 0 0 0 0 0 0 0]
            [0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0]
            [0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0]
            [0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0]
            [0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0]
            [0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0]
-           [0 1 4 4 4 4 4 4 4 4 5 5 5 5 5 5 5 5 1 0]
+           [9 1 4 4 4 4 4 4 4 4 5 5 5 5 5 5 5 5 1 0]
            [1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1]
            ])
 
@@ -48,14 +48,14 @@
   )
 
 (def app-state (atom {:text "Hello Chestnut!"
-                      :hero {:move false
-                             :dx 0
+                      :hero {:dx 0
                              :dy 0
                              :life 100
                              :position (hero-start-position grid-content)
-                             :jump {:time nil :bottom nil}
+                             :bounce 10
                              }
                       :game-over false
+                      :design-game false
                       :grid grid-content}))
 
 (defn ceil [i]
@@ -102,6 +102,14 @@
         app @app-state]
     (some #{1} [(get-in app (into [:grid] left)) (get-in app (into [:grid] right))]
          )))
+
+(defn on-supporting-block? [position]
+  (let [[left right] (hero-feet-coords position)
+        app @app-state
+        below-left (update-in left [0] + 1)
+        below-right (update-in right [0] + 1)]
+    (some #{1} [(get-in app (into [:grid] left)) (get-in app (into [:grid] right))]
+          )))
 
 (defn beneath-1px [position]
   (let [{:keys [left bottom]} position]
@@ -171,39 +179,10 @@
       hero
       )))
 
-(defn gravity [current-vertical jump-time hero]
-  (let [last-bottom (get-in hero [:position :bottom])
-        initial-bottom (get-in hero [:jump :bottom])
-        dt (/ (- (.getTime (js/Date.)) jump-time) 1000)
-        vforce (* 1000 dt)
-        gforce (/ (* 2000 dt dt) 2)
-        height (+ (- vforce gforce) initial-bottom)
-        ]
-      (update-in hero [:position :bottom] (fn [_] height))
 
-      )
-  )
 
-(defn move-vertically [hero]
-  (let [current-vertical (get-in hero [:position :bottom])
-        jump-time (get-in hero [:jump :start])]
-    (if jump-time
-      (gravity current-vertical jump-time hero)
-      hero
-      )
-    )
-  )
 
-(defn ground-resistance [hero]
-  (let [position (get-in hero [:position])
-        coord-y (vertical-coord position)
-        current-tiles (blocks position)]
-    (if (some #{1} current-tiles)
-      (let [new-hero (update-in hero [:position :bottom] (fn [_] (* (+ 1 coord-y) 70)))]
-        (update-in new-hero [:jump :start] (fn [_] nil)))
-      hero
-      )
-    ))
+
 
 (defn block-resistance [hero]
   (let [position (get-in hero [:position])
@@ -227,80 +206,53 @@
 (defn off-screen [hero]
   hero)
 
-(defn stop-if-blocked [original-hero new-hero]
-  (let [new-hero-coords (blocks (new-hero :position))]
-    (if (moving? new-hero)
-      (if (> 0 (new-hero :dx))
-        ;; moving left
-        (if (= 1 (first new-hero-coords))
-          (update-in new-hero [:position :left] (fn [_] (get-in original-hero [:position :left])))
-          new-hero
-          )
-        (if (= 1 (last new-hero-coords))
-          (update-in new-hero [:position :left] (fn [_] (get-in original-hero [:position :left])))
-          new-hero
-          )
-        )
-      new-hero
-      )
-    )
+(defn bounce [hero]
+  (update-in hero [:position :bottom] + (get-in hero [:bounce]))
   )
 
 (defn grav [hero]
-  (let [supported (most-supportive-block (hero :position))]
-    ;;(console-log supported)
-    ;;(console-log (hero :position))
-    (if (= 0 supported)
-      (let [new-hero (update-in hero [:dy] - 5)]
-        (update-in hero [:position :bottom] + (new-hero :dy))
+  (let [new-hero (update-in hero [:dy] - 0.75)]
+    (update-in new-hero [:position :bottom] + (new-hero :dy))
+    )
+  )
+
+(defn vertical-block [original-hero new-hero]
+  (let [original-bottom (get-in original-hero [:position :bottom])
+        supported (on-supporting-block? (update-in (original-hero :position) [:bottom] - 1))]
+    (if supported
+      (let [nearest-vertical-border (* (ceil (/ original-bottom 70)) 70)
+            newer-hero (update-in new-hero [:position :bottom] (fn [_] nearest-vertical-border))]
+        (update-in newer-hero [:dy] (fn [_] 0))
         )
-      hero
-      )))
+      new-hero
+        )
+      ))
+
+(defn logger [key hero]
+  ;;(console-log {key (get-in hero [:position :left])})
+  hero
+  )
 
 (defn hero [app owner]
   (reify
     om/IWillMount
     (will-mount [_]
+      (console-log "mounting...")
       (if (>= 0 (get-in @app [:hero :life]))
         (om/update! app [:game-over] true)
         (go-loop []
+          (<! (timeout 30))
 
           (let [original-hero (get-in @app [:hero])
                 new-hero (-> original-hero
-                             move-horizontally
-                             ((partial stop-if-blocked original-hero))
                              grav
-                             ;; move-vertically
-                             ;; lava-damage
-                             ;; spike-damage
-                             ;; off-screen
-                             ;; ground-resistance
-                             ;; block-resistance
-
-
-                             ;;((partial partial-check original-hero))
+                             ((partial vertical-block original-hero))
+                             move-horizontally
+                             bounce
                              )]
 
-            ;;(console-log (new-hero :jump))
-            (om/update! app [:hero] new-hero)
+            (om/transact! app [:hero] (fn [hero] (merge hero new-hero)))
             )
-
-
-          ;; (om/update! app [:hero :position :bottom] (vertical-position app))
-          ;; (when (= :left (get-in @app [:hero :move]))
-          ;;   (when (can-move :left @app)
-          ;;     (when (in-lava @app)
-          ;;       (om/transact! app [:hero :life] (fn [old] (- old 1)))
-          ;;       )
-          ;;     (om/transact! app [:hero :position :left] (fn [old] (- old 5)))))
-          ;; (when (= :right (get-in @app [:hero :move]))
-          ;;   (when (can-move :right @app)
-          ;;     (when (in-lava @app)
-          ;;       (om/transact! app [:hero :life] (fn [old] (- old 1)))
-          ;;       )
-          ;;     (om/transact! app [:hero :position :left] (fn [old] (+ old 5)))))
-
-          (<! (timeout (/ 1000 60)))
           (recur)
           )
         )
@@ -354,11 +306,8 @@
 
 (defn start-moving [e app]
   (condp = (aget e "keyCode")
-    88 (om/update! app [:hero :dx] 5)
-    90 (om/update! app [:hero :dx] -5)
-    32 (when (and (on-solid-ground? (get-in @app [:hero :position])) (nil? (get-in @app [:hero :jump :start])))
-         (om/update! app [:hero :jump :start] (.getTime (js/Date.)))
-         (om/update! app [:hero :jump :bottom] (get-in @app [:hero :position :bottom])))
+    88 (om/update! app [:hero :dx] 10)
+    90 (om/update! app [:hero :dx] -10)
     nil
     )
   )
@@ -379,11 +328,12 @@
         (render [_]
           (if (>= 0 (get-in app [:hero :life]))
             (dom/h1 nil "GAME OVER")
-            (dom/div #js {:className "grid" :tabIndex 0 :onKeyUp (fn [e] (stop-moving e app)) :onKeyDown (fn [e] (start-moving e app) (.preventDefault e))}
-                   (om/build status-bar (:hero app))
-                   (om/build hero app)
-                   (om/build grid (:grid app))
-                   )
+            (dom/div nil
+                     (om/build status-bar (:hero app))
+                     (dom/div #js {:className "grid" :tabIndex 0 :onKeyUp (fn [e] (stop-moving e app)) :onKeyDown (fn [e] (start-moving e app) (.preventDefault e))}
+                              (om/build hero app)
+                              (om/build grid (:grid app))
+                              ))
             )
           )))
     app-state
