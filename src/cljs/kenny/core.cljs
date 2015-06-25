@@ -11,20 +11,17 @@
 (defn console-log [obj]
   (.log js/console (clj->js obj)))
 
-(defn noprintln [obj]
-  obj)
-
 (def grid-content [
-           [0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0]
-           [0 0 0 0 1 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0]
-           [0 0 0 0 1 1 1 1 1 0 1 1 1 0 0 0 0 0 0 0]
-           [0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0]
-           [0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0]
-           [0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0]
-           [0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0]
-           [0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0]
-           [9 1 4 4 4 4 4 4 4 4 5 5 5 5 5 5 5 5 1 0]
-           [1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1]
+           [[0] [0] [0] [0] [0] [0] [0] [0] [0] [0] [0] [0] [0] [0] [0] [0] [0] [0] [0] [0]]
+           [[0] [0] [0] [0] [1] [0] [0] [0] [0] [0] [0] [0] [1] [0] [0] [0] [0] [0] [0] [0]]
+           [[0] [0] [0] [0] [1] [1] [1] [1] [1] [0] [1] [1] [1] [0] [0] [0] [0] [0] [0] [0]]
+           [[0] [0] [0] [0] [0] [0] [0] [0] [0] [0] [0] [0] [0] [0] [0] [0] [0] [0] [0] [0]]
+           [[0] [0] [0] [0] [0] [0] [0] [0] [0] [0] [0] [0] [0] [0] [0] [0] [0] [0] [0] [0]]
+           [[0] [0] [0] [0] [0] [0] [0] [0] [0] [0] [0] [0] [0] [0] [0] [0] [0] [0] [0] [0]]
+           [[0] [0] [0] [0] [0] [0] [0] [0] [0] [0] [0] [0] [0] [0] [0] [0] [0] [0] [0] [0]]
+           [[0] [0] [0] [0] [0] [0] [0] [0] [0] [0] [0] [0] [0] [0] [0] [0] [0] [0] [0] [0]]
+           [[9] [1] [4] [4] [4] [4] [4] [4] [4] [4] [5] [5] [5] [5] [5] [5] [5] [5] [1] [0]]
+           [[1] [1] [1] [1] [1] [1] [1] [1] [1] [1] [1] [1] [1] [1] [1] [1] [1] [1] [1] [1]]
            ])
 
 (defn indices [pred coll]
@@ -35,7 +32,7 @@
   )
 
 (defn is-hero [cell]
-  (= cell 9))
+  (= cell [9]))
 
 (defn hero-start-position [grid-content]
   (let [row-index (first (indices contains-hero (reverse grid-content)))
@@ -55,7 +52,8 @@
                              :bounce 10
                              }
                       :game-over false
-                      :design-game false
+                      :design-game true
+                      :foo ["bar"]
                       :grid grid-content}))
 
 (defn ceil [i]
@@ -77,66 +75,13 @@
      ]
     ))
 
-(defn vertical-coord [position]
-  (let [bottom (position :bottom)]
-     (floor (/ bottom 70))
-     ))
-
-(defn horizontal-coords [position]
-  (let [left (position :left)]
-    {
-     :left (floor (/ (+ left 20) 70))
-     :right (floor (/ (+ left 54) 70))
-     }
-
-    ))
-
-(defn blocks [position]
-  (let [[left right] (hero-feet-coords position)
-        app @app-state]
-    [(get-in app (into [:grid] left)) (get-in app (into [:grid] right))]
-          ))
-
-(defn most-supportive-block [position]
-  (let [[left right] (hero-feet-coords position)
-        app @app-state]
-    (some #{1} [(get-in app (into [:grid] left)) (get-in app (into [:grid] right))]
-         )))
-
 (defn on-supporting-block? [position]
   (let [[left right] (hero-feet-coords position)
         app @app-state
         below-left (update-in left [0] + 1)
         below-right (update-in right [0] + 1)]
-    (some #{1} [(get-in app (into [:grid] left)) (get-in app (into [:grid] right))]
+    (some #{[1]} [(get-in app (into [:grid] left)) (get-in app (into [:grid] right))]
           )))
-
-(defn beneath-1px [position]
-  (let [{:keys [left bottom]} position]
-    {:left left :bottom (- bottom 5)}
-    ))
-
-(defn left-1px [position]
-  (let [{:keys [left bottom]} position]
-    {:left (- left 1) :bottom bottom}
-    ))
-
-(defn right-1px [position]
-  (let [{:keys [left bottom]} position]
-    {:left (+ left 1) :bottom bottom}
-    ))
-
-(defn on-solid-ground? [position]
-  (= 1 (most-supportive-block (beneath-1px position)))
-  )
-
-(defn move-left? [app position]
-  (not= 1 (get-in app (into [:grid] (first (hero-feet-coords (left-1px position))))))
-  )
-
-(defn move-right? [app position]
-  (not= 1 (get-in app (into [:grid] (second (hero-feet-coords (right-1px position))))))
-  )
 
 (defn moving? [hero]
   (not= 0 (hero :dx))
@@ -158,20 +103,6 @@
       )
     ))
 
-(defn can-move [direction app]
-  (println direction)
-  (let [position (get-in app [:hero :position])]
-    (condp = direction
-      :left (move-left? app position)
-      :right (move-right? app position))
-    ))
-
-(defn in-lava [app]
-  (let [position (get-in app [:hero :position])]
-    (some #{4} (blocks position))
-    )
-  )
-
 (defn move-horizontally [hero]
   (let [left-position (get-in hero [:position :left])]
     (if (moving? hero)
@@ -179,31 +110,10 @@
       hero
       )))
 
-
-
-
-
-
-(defn block-resistance [hero]
-  (let [position (get-in hero [:position])
-        coords-x (horizontal-coords position)
-        current-tiles (blocks position)]
-    (if (some #{1} current-tiles)
-      (condp = (moving? hero)
-        :left (update-in hero [:position :left] (fn [_] (* (+ (coords-x :left) 1) 70)))
-
-        :right (update-in hero [:position :left] (fn [_] (* (- (coords-x :left) 1) 70))))
-      hero
-      )
-    ))
-
 (defn lava-damage [hero]
   hero)
 
 (defn spike-damage [hero]
-  hero)
-
-(defn off-screen [hero]
   hero)
 
 (defn bounce [hero]
@@ -273,35 +183,57 @@
    7 "start"
    8 "exit"})
 
-(defn cell [cell owner]
+(defn editable-input [ctx owner]
   (reify
     om/IRender
     (render [this]
-      (when (= cell 9)
+      (dom/span nil
+                (dom/input #js {
+                                :className ""
+                                :onChange (fn [e] (om/transact! ctx [0] (fn [_] (.. e -target -value))))
+                                :value (first ctx)
+                                }
+                           )))))
+
+(defn cell [ctx owner]
+  (reify
+    om/IRenderState
+    (render-state [this state]
+      (if (:design state)
+        (dom/div #js {:className "cell"}
+                 (dom/span nil
+                           (om/build editable-input ctx))
+                 )
+        (dom/div #js {:className (str "cell " (id->tile-class (first ctx)))} ""))))
         )
-      (dom/div #js {:className (str "cell " (id->tile-class cell))} ""))))
 
 (defn row [row owner]
   (reify
-    om/IRender
-    (render [this]
+    om/IRenderState
+    (render-state [this state]
       (apply
        dom/div #js {:className "row"}
-       (om/build-all cell row)))))
+       (om/build-all cell row {:init-state state})))))
 
 (defn grid [grid owner]
   (reify
-    om/IRender
-    (render [this]
+    om/IRenderState
+    (render-state [this state]
       (apply
        dom/div nil
-       (om/build-all row grid)))))
+       (om/build-all row grid {:init-state state})))))
 
-(defn status-bar [hero owner]
+(defn status-bar [app owner]
   (reify
     om/IRender
     (render [this]
-      (dom/h1 nil (hero :life))))
+      (dom/div nil
+               (dom/h1 nil (get-in app [:hero :life]))
+               (dom/button #js {:onClick (fn [e] (om/transact! app :design-game (fn [bool] (not bool))) false)}
+                 (if (app :design-game)
+                   "Play"
+                   "Design"))
+               )))
   )
 
 (defn start-moving [e app]
@@ -329,11 +261,17 @@
           (if (>= 0 (get-in app [:hero :life]))
             (dom/h1 nil "GAME OVER")
             (dom/div nil
-                     (om/build status-bar (:hero app))
-                     (dom/div #js {:className "grid" :tabIndex 0 :onKeyUp (fn [e] (stop-moving e app)) :onKeyDown (fn [e] (start-moving e app) (.preventDefault e))}
-                              (om/build hero app)
-                              (om/build grid (:grid app))
-                              ))
+                     (om/build status-bar app)
+                     (if (get-in app [:design-game])
+                       (om/build editable-input (:foo app))
+                       (dom/div #js {:className "grid on-top" :tabIndex 0 :onKeyUp (fn [e] (stop-moving e app)) :onKeyDown (fn [e] (start-moving e app) (.preventDefault e))}
+                                (om/build grid (:grid app) {:init-state {:design true}})
+                                )
+
+                       (dom/div #js {:className "grid" :tabIndex 0 :onKeyUp (fn [e] (stop-moving e app)) :onKeyDown (fn [e] (start-moving e app) (.preventDefault e))}
+                                (om/build hero app)
+                                (om/build grid (:grid app))
+                                )))
             )
           )))
     app-state
