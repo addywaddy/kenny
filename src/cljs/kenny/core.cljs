@@ -44,7 +44,7 @@
     )
   )
 
-(def app-state (atom {:text "Hello Chestnut!"
+(def app-state (atom {
                       :hero {:dx 0
                              :dy 0
                              :life 100
@@ -52,7 +52,7 @@
                              :bounce 10
                              }
                       :game-over false
-                      :design-game true
+                      :design-game false
                       :foo ["bar"]
                       :grid grid-content}))
 
@@ -263,10 +263,8 @@
             (dom/div nil
                      (om/build status-bar app)
                      (if (get-in app [:design-game])
-                       (om/build editable-input (:foo app))
-                       (dom/div #js {:className "grid on-top" :tabIndex 0 :onKeyUp (fn [e] (stop-moving e app)) :onKeyDown (fn [e] (start-moving e app) (.preventDefault e))}
-                                (om/build grid (:grid app) {:init-state {:design true}})
-                                )
+                       (dom/div #js {:className "grid on-top"}
+                                (om/build grid (:grid app) {:init-state {:design true}}))
 
                        (dom/div #js {:className "grid" :tabIndex 0 :onKeyUp (fn [e] (stop-moving e app)) :onKeyDown (fn [e] (start-moving e app) (.preventDefault e))}
                                 (om/build hero app)
