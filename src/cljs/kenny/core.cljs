@@ -133,11 +133,17 @@
       )
     ))
 
-(defn lava-damage [hero]
-  hero)
+(defn on-trampete? [hero]
+  (if (on-block? (get-in hero [:position]) "3")
+    (update-in hero [:dy] + 3)
+    hero
+    ))
 
 (defn spike-damage [hero]
-  hero)
+  (if (on-block? (get-in hero [:position]) "2")
+    (update-in hero [:life] - 1)
+    hero
+    ))
 
 (defn bounce [hero]
   (update-in hero [:position :bottom] + (get-in hero [:bounce]))
@@ -195,6 +201,8 @@
                            move-left
                            move-right
                            bounce
+                           on-trampete?
+                           spike-damage
                            ((partial home? original-hero))
                            ((partial game-over? original-hero))
                            )]
@@ -212,8 +220,8 @@
 (def id->tile-class
   {"0" nil
    "1" "ground"
-   "2" "lava"
-   "3" "spikes"
+   "2" "spikes"
+   "3" "trampete"
    "4" "exit"})
 
 (defn editable-input [ctx owner]
