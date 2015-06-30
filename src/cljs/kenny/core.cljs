@@ -22,7 +22,7 @@
                    [["0"] ["0"] ["0"] ["0"] ["0"] ["0"] ["0"] ["0"] ["0"] ["0"] ["0"] ["0"] ["0"] ["0"] ["0"] ["0"] ["0"] ["0"] ["0"] ["0"]]
                    [["0"] ["0"] ["0"] ["0"] ["0"] ["0"] ["0"] ["0"] ["0"] ["0"] ["0"] ["0"] ["0"] ["0"] ["0"] ["0"] ["0"] ["0"] ["0"] ["0"]]
                    [["9"] ["0"] ["0"] ["2"] ["2"] ["3"] ["4"] ["0"] ["0"] ["0"] ["0"] ["0"] ["0"] ["0"] ["0"] ["0"] ["0"] ["0"] ["0"] ["0"]]
-                   [["1"] ["1"] ["1"] ["1"] ["1"] ["1"] ["1"] ["1"] ["1"] ["1"] ["1"] ["1"] ["1"] ["1"] ["1"] ["1"] ["1"] ["1"] ["1"] ["1"]]
+                   [["1"] ["0"] ["1"] ["1"] ["1"] ["1"] ["1"] ["1"] ["1"] ["1"] ["1"] ["1"] ["1"] ["1"] ["1"] ["1"] ["1"] ["1"] ["1"] ["1"]]
                    ])
 
 (defn indices [pred coll]
@@ -180,8 +180,9 @@
   )
 
 (defn game-over? [original-hero hero]
-  (if (> 0 (get-in hero [:position :bottom]))
-    (merge hero {:life 0})
+  (if (or (> 0 (get-in hero [:position :bottom]))
+          (> 0 (get-in hero [:life])))
+    (merge original-hero {:life 0})
     hero
     )
   )
@@ -270,6 +271,8 @@
     (render [this]
       (dom/div nil
                (dom/h1 nil (get-in app [:hero :life]))
+               (dom/button #js {:onClick (fn [e] (om/transact! app (fn [_] default-data)) false)}
+                           "Reset")
                (dom/button #js {:onClick (fn [e] (om/transact! app :design-game (fn [bool] (not bool))) false)}
                            (if (app :design-game)
                              "Play"
