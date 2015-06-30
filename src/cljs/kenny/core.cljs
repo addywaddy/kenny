@@ -193,7 +193,7 @@
     (will-mount [_]
       (console-log "mounting...")
       (go-loop []
-        (<! (timeout 30))
+        (<! (timeout 40))
 
         (let [original-hero (get-in @app [:hero])
               new-hero (-> original-hero
@@ -269,14 +269,23 @@
   (reify
     om/IRender
     (render [this]
-      (dom/div nil
-               (dom/h1 nil (get-in app [:hero :life]))
-               (dom/button #js {:onClick (fn [e] (om/transact! app (fn [_] default-data)) false)}
-                           "Reset")
-               (dom/button #js {:onClick (fn [e] (om/transact! app :design-game (fn [bool] (not bool))) false)}
+      (dom/div #js {:className "status-bar"}
+               (dom/span #js {:className "life"} (str "Leben: " (get-in app [:hero :life]) "%"))
+               (dom/button #js {:onClick (fn [e] (do
+                                                   (om/transact! app (fn [_] default-data))
+                                                   (.. js/document (querySelector ".grid") (focus))
+                                                   false))
+                                }
+                           "Neu Starten")
+               (dom/button #js {:onClick (fn [e] (do
+                                                   (om/transact! app :design-game (fn [bool] (not bool)))
+                                                   (.. js/document (querySelector ".grid") (focus))
+                                                   false
+                                                   )
+                                           )}
                            (if (app :design-game)
-                             "Play"
-                             "Design"))
+                             "Züruck"
+                             "Entwerfen"))
                )))
   )
 
@@ -304,9 +313,9 @@
        (render [_]
          (dom/div nil
                   (when (>= 0 (get-in app [:hero :life]))
-                    (dom/h1 nil "GAME OVER"))
+                    (dom/h1 #js {:className "banner lost"} "GAME OVER!"))
                   (when (get-in app [:hero :game-won])
-                    (dom/h1 nil "YEAH!")
+                    (dom/h1 #js {:className "banner won"} "YOU DID IT!")
                     )
                   (om/build status-bar app)
                   (if (get-in app [:design-game])
