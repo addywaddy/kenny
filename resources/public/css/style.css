@@ -387,6 +387,7 @@ h1 {
   text-decoration: underline;
 }
 .grid {
+  outline: none;
   text-align: center;
   margin: 0 auto;
   position: absolute;
