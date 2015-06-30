@@ -17,6 +17,8 @@
                  [enlive "1.1.5"]
                  [om "0.8.0-rc1"]
                  [org.clojure/core.async "0.1.346.0-17112a-alpha"]
+                 [alandipert/storage-atom "1.2.4"]
+                 [com.cognitect/transit-cljs "0.8.215"]
                  [environ "1.0.0"]]
 
   :plugins [[lein-cljsbuild "1.0.3"]
