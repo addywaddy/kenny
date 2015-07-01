@@ -356,7 +356,6 @@ td,
 th {
   padding: 0;
 }
-
 #app {
   width: 1400px;
   position: relative;
@@ -393,11 +392,18 @@ h1 {
   width: 1400px;
   background: #516E8E;
 }
-
-.grid-table {
-  outline: none;
+table th {
+  text-align: left;
 }
-
+table th,
+table td {
+  border: 1px solid #aaa;
+  padding: 10px;
+}
+table select {
+  text-align: center;
+  width: 45px;
+}
 .row {
   float: left;
   width: 1400px;
@@ -434,8 +440,11 @@ h1 {
 .cell.exit {
   background-image: url(/img/tiles/bonus.png);
 }
-.cell.trampete {
+.cell.blue-trampete {
   background-image: url(/img/tiles/switch_blue_on.png);
+}
+.cell.red-trampete {
+  background-image: url(/img/tiles/switch_red_on.png);
 }
 .hero {
   z-index: 0;

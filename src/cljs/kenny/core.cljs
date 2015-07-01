@@ -12,28 +12,33 @@
 (defn console-log [obj]
   (.log js/console (clj->js obj)))
 
+(defn parse-int [str]
+
+  (.parseInt js/window str)
+  )
+
 (def grid-content [
-                   [["0"] ["0"] ["0"] ["0"] ["0"] ["0"] ["0"] ["0"] ["0"] ["0"] ["0"] ["0"] ["0"] ["0"] ["0"] ["0"] ["0"] ["0"] ["0"] ["0"]]
-                   [["0"] ["0"] ["0"] ["0"] ["0"] ["0"] ["0"] ["0"] ["0"] ["0"] ["0"] ["0"] ["0"] ["0"] ["0"] ["0"] ["0"] ["0"] ["0"] ["0"]]
-                   [["0"] ["0"] ["0"] ["0"] ["0"] ["0"] ["0"] ["0"] ["0"] ["0"] ["0"] ["0"] ["0"] ["0"] ["0"] ["0"] ["0"] ["0"] ["0"] ["0"]]
-                   [["0"] ["0"] ["0"] ["0"] ["0"] ["0"] ["0"] ["0"] ["0"] ["0"] ["0"] ["0"] ["0"] ["0"] ["0"] ["0"] ["0"] ["0"] ["0"] ["0"]]
-                   [["0"] ["0"] ["0"] ["0"] ["0"] ["0"] ["0"] ["0"] ["0"] ["0"] ["0"] ["0"] ["0"] ["0"] ["0"] ["0"] ["0"] ["0"] ["0"] ["0"]]
-                   [["0"] ["0"] ["0"] ["0"] ["0"] ["0"] ["0"] ["0"] ["0"] ["0"] ["0"] ["0"] ["0"] ["0"] ["0"] ["0"] ["0"] ["0"] ["0"] ["0"]]
-                   [["0"] ["0"] ["0"] ["0"] ["0"] ["0"] ["0"] ["0"] ["0"] ["0"] ["0"] ["0"] ["0"] ["0"] ["0"] ["0"] ["0"] ["0"] ["0"] ["0"]]
-                   [["0"] ["0"] ["0"] ["0"] ["0"] ["0"] ["0"] ["0"] ["0"] ["0"] ["0"] ["0"] ["0"] ["0"] ["0"] ["0"] ["0"] ["0"] ["0"] ["0"]]
-                   [["9"] ["0"] ["0"] ["2"] ["2"] ["3"] ["4"] ["0"] ["0"] ["0"] ["0"] ["0"] ["0"] ["0"] ["0"] ["0"] ["0"] ["0"] ["0"] ["0"]]
-                   [["1"] ["0"] ["1"] ["1"] ["1"] ["1"] ["1"] ["1"] ["1"] ["1"] ["1"] ["1"] ["1"] ["1"] ["1"] ["1"] ["1"] ["1"] ["1"] ["1"]]
+                   [[0] [0] [0] [0] [0] [0] [0] [0] [0] [0] [0] [0] [0] [0] [0] [0] [0] [0] [0] [0]]
+                   [[0] [0] [0] [0] [0] [0] [0] [0] [0] [0] [0] [0] [0] [0] [0] [0] [0] [0] [0] [0]]
+                   [[0] [0] [0] [0] [0] [0] [0] [0] [0] [0] [0] [0] [0] [0] [0] [0] [0] [0] [0] [0]]
+                   [[0] [0] [0] [0] [0] [0] [0] [0] [0] [0] [0] [0] [0] [0] [0] [0] [0] [0] [0] [0]]
+                   [[0] [0] [0] [0] [0] [0] [0] [0] [0] [0] [0] [0] [0] [0] [0] [0] [0] [0] [0] [0]]
+                   [[0] [0] [0] [0] [0] [0] [0] [0] [0] [0] [0] [0] [0] [0] [0] [0] [0] [0] [0] [0]]
+                   [[0] [0] [0] [0] [0] [0] [0] [0] [0] [0] [0] [0] [0] [0] [0] [0] [0] [0] [0] [0]]
+                   [[0] [0] [0] [0] [0] [0] [0] [0] [0] [0] [0] [0] [0] [0] [0] [0] [0] [0] [0] [0]]
+                   [[9] [0] [0] [2] [2] [3] [4] [0] [0] [0] [0] [0] [0] [0] [0] [0] [0] [0] [0] [0]]
+                   [[1] [0] [1] [1] [1] [1] [1] [1] [1] [1] [1] [1] [1] [1] [1] [1] [1] [1] [1] [1]]
                    ])
 
 (defn indices [pred coll]
   (keep-indexed #(when (pred %2) %1) coll))
 
 (defn contains-hero [row]
-  (some #{["9"]} row)
+  (some #{[9]} row)
   )
 
 (defn is-hero [cell]
-  (= cell ["9"]))
+  (= cell [9]))
 
 (defn hero-start-position [grid-content]
   (let [row-index (first (indices contains-hero (reverse grid-content)))
@@ -49,15 +54,18 @@
    :dy 0
    :life 100
    :position (hero-start-position grid-content)
-   :bounce 30
    :game-won false
    }
   )
 
 (def default-data {
                    :hero default-hero
-                      :design-game false
-                      :grid grid-content})
+                   :design-game false
+                   :grid grid-content
+                   :settings {:bounce [3]
+                              :red-trampete [5]
+                              :blue-trampete [3]
+                              }})
 
 (def app-state (local-storage (atom default-data) "game"))
 
@@ -70,7 +78,8 @@
 (defn hero-position [app]
   #js {:bottom (get-in app [:hero :position :bottom])
        :left (get-in app [:hero :position :left])
-       :display (if (get-in app [:design-game]) "none" "block")})
+       :display (if (get-in app [:design-game]) "none" "block")
+       :z-index 10})
 
 (defn hero-feet-coords [position]
   (let [bottom (position :bottom)
@@ -86,7 +95,7 @@
         app @app-state
         below-left (update-in left [0] + 1)
         below-right (update-in right [0] + 1)]
-    (some #{["1"]} [(get-in app (into [:grid] left)) (get-in app (into [:grid] right))]
+    (some #{[1]} [(get-in app (into [:grid] left)) (get-in app (into [:grid] right))]
           )))
 
 (defn on-block? [position, block-no]
@@ -137,20 +146,26 @@
       )
     ))
 
-(defn on-trampete? [hero]
-  (if (on-block? (get-in hero [:position]) "3")
-    (update-in hero [:dy] + 3)
+(defn on-red-trampete? [red-trampete hero]
+  (if (on-block? (get-in hero [:position]) 3)
+    (update-in hero [:dy] (fn [old-dy] (+ old-dy (-> red-trampete first))))
+    hero
+    ))
+
+(defn on-blue-trampete? [blue-trampete hero]
+  (if (on-block? (get-in hero [:position]) 4)
+    (update-in hero [:dy] (fn [old-dy] (+ old-dy (-> blue-trampete first))))
     hero
     ))
 
 (defn spike-damage [hero]
-  (if (on-block? (get-in hero [:position]) "2")
+  (if (on-block? (get-in hero [:position]) 2)
     (update-in hero [:life] - 1)
     hero
     ))
 
-(defn bounce [hero]
-  (update-in hero [:position :bottom] + (get-in hero [:bounce]))
+(defn bouncing [bounce hero]
+  (update-in hero [:position :bottom] (fn [old-bottom] (+ old-bottom (-> bounce first))))
   )
 
 (defn grav [hero]
@@ -177,7 +192,7 @@
   )
 
 (defn home? [original-hero hero]
-  (if (on-block? (get-in original-hero [:position]) "4")
+  (if (on-block? (get-in original-hero [:position]) 5)
     (merge original-hero {:game-won true})
     hero
     )
@@ -198,15 +213,18 @@
       (console-log "mounting...")
       (go-loop []
         (<! (timeout 40))
-
         (let [original-hero (get-in @app [:hero])
+              bounce (get-in @app [:settings :bounce])
+              red-trampete (get-in @app [:settings :red-trampete])
+              blue-trampete (get-in @app [:settings :blue-trampete])
               new-hero (-> original-hero
                            grav
                            ((partial vertical-block original-hero))
                            move-left
                            move-right
-                           bounce
-                           on-trampete?
+                           ((partial bouncing bounce))
+                           ((partial on-blue-trampete? blue-trampete))
+                           ((partial on-red-trampete? red-trampete))
                            spike-damage
                            ((partial home? original-hero))
                            ((partial game-over? original-hero))
@@ -223,11 +241,12 @@
     ))
 
 (def id->tile-class
-  {"0" nil
-   "1" "ground"
-   "2" "spikes"
-   "3" "trampete"
-   "4" "exit"})
+  {0 nil
+   1 "ground"
+   2 "spikes"
+   3 "red-trampete"
+   4 "blue-trampete"
+   5 "exit"})
 
 (defn editable-input [ctx owner]
   (reify
@@ -236,10 +255,27 @@
       (dom/span nil
                 (dom/input #js {
                                 :className ""
-                                :onChange (fn [e] (om/transact! ctx [0] (fn [_] (.. e -target -value))))
+                                :onChange (fn [e] (om/transact! ctx [0] (fn [_] (parse-int (.. e -target -value)))))
                                 :value (first ctx)
                                 }
                            )))))
+
+
+
+(defn option-tag [val owner]
+  (reify
+    om/IRender
+    (render [this]
+      (dom/option #js {:value (first val)} (first val)))))
+
+(defn select-tag [ctx owner options]
+  (reify
+    om/IRenderState
+    (render-state [this state]
+      (apply
+       dom/select #js {:value (first ctx)
+                       :onChange (fn [e] (om/transact! ctx [0] (fn [_] (parse-int (.. e -target -value)))))}
+       (om/build-all option-tag (:options state))))))
 
 (defn cell [ctx owner]
   (reify
@@ -248,7 +284,7 @@
       (if (:design state)
         (dom/div #js {:className "cell"}
                  (dom/span nil
-                           (om/build editable-input ctx))
+                           (om/build select-tag ctx {:init-state {:options [[0] [1] [2] [3] [4] [9]]}}))
                  )
         (dom/div #js {:className (str "cell " (id->tile-class (first ctx)))} ""))))
   )
@@ -275,7 +311,8 @@
     om/IRenderState
     (render-state [this state]
       (dom/td nil
-              (om/build editable-input ctx))
+              (om/build select-tag ctx {:init-state state})
+              )
   )))
 
 (defn table-row [row owner]
@@ -284,7 +321,7 @@
     (render-state [this state]
       (apply
        dom/tr nil
-       (om/build-all table-cell row)))))
+       (om/build-all table-cell row {:init-state {:options [[0] [1] [2] [3] [4] [9]]}})))))
 
 (defn grid-table [grid owner]
   (reify
@@ -298,13 +335,36 @@
                             ))
     ))
 
+(defn settings-form [settings]
+  (reify
+    om/IRenderState
+    (render-state [this state]
+      (dom/table nil
+                 (dom/tbody nil
+                            (dom/tr nil
+                                    (dom/th nil "Red Trampoline")
+                                    (om/build table-cell (:red-trampete settings) {:init-state {:options (mapv (fn [i] [i]) (range 1 7))}})
+                                    )
+                            (dom/tr nil
+                                    (dom/th nil "Blue Trampoline")
+                                    (om/build table-cell (:blue-trampete settings) {:init-state {:options (mapv (fn [i] [i]) (range 1 7))}})
+                                    )
+                            )
+
+                 )
+      ))
+  )
+
 (defn design-view [app owner]
   (reify
     om/IRenderState
     (render-state [this state]
       (dom/div nil
                (dom/h2 nil "Der Raster")
-               (om/build grid-table (:grid app)))
+               (om/build grid-table (:grid app))
+               (dom/h2 nil "Kenny")
+               (om/build settings-form (:settings app))
+               )
       )))
 
 (defn status-bar [app owner]
@@ -365,7 +425,7 @@
                     )
                   (om/build status-bar app)
                   (dom/div (if (get-in app [:design-game]) nil (add-event-listeners app))
-                             (om/build hero app)
+                           (om/build hero app)
                              (if (get-in app [:design-game])
                                (om/build design-view app)
                                ;;(om/build grid-table (:grid app))

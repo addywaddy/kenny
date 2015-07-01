@@ -426,9 +426,6 @@ th {
   padding: 0;
 }
 
-body {
-  background: #000;
-}
 // END OF NORMALIZE
 #app {
   width: 1400px;
@@ -470,28 +467,19 @@ h1 {
   float: left;
   width: 1400px;
   background: #516E8E;
+}
 
-  &.on-top {
-    position: absolute;
-    z-index: 1;
-    .cell {
-      background: #000;
-      box-shadow: inset 0px 0px 1px #777;
 
-      input {
-        width: 70px;
-        padding: 0px;
-        border: none;
-        height: 70px;
-        margin: 0px;
-        display: block;
-        background: none;
-        color: #535353;
-        font-family: monospace;
-        font-size: 60px;
-        text-align: center;
-      }
-    }
+table {
+  th { text-align: left; }
+  th, td {
+    border: 1px solid #aaa;
+    padding: 10px;
+  }
+
+  select {
+    text-align: center;
+    width: 45px;
   }
 }
 
@@ -538,8 +526,11 @@ h1 {
   &.exit {
     background-image: url(/img/tiles/bonus.png);
   }
-  &.trampete {
+  &.blue-trampete {
     background-image: url(/img/tiles/switch_blue_on.png);
+  }
+  &.red-trampete {
+    background-image: url(/img/tiles/switch_red_on.png);
   }
 }
 
