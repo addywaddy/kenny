@@ -44,16 +44,19 @@
     )
   )
 
+(def default-hero
+  {:dx 0
+   :dy 0
+   :life 100
+   :position (hero-start-position grid-content)
+   :bounce 30
+   :game-won false
+   }
+  )
+
 (def default-data {
-                      :hero {:dx 0
-                             :dy 0
-                             :life 100
-                             :position (hero-start-position grid-content)
-                             :bounce 10
-                             :game-won false
-                             }
+                   :hero default-hero
                       :design-game false
-                      :foo ["bar"]
                       :grid grid-content})
 
 (def app-state (local-storage (atom default-data) "game"))
@@ -66,7 +69,8 @@
 
 (defn hero-position [app]
   #js {:bottom (get-in app [:hero :position :bottom])
-       :left (get-in app [:hero :position :left])})
+       :left (get-in app [:hero :position :left])
+       :display (if (get-in app [:design-game]) "none" "block")})
 
 (defn hero-feet-coords [position]
   (let [bottom (position :bottom)
@@ -257,6 +261,7 @@
        dom/div #js {:className "row"}
        (om/build-all cell row {:init-state state})))))
 
+
 (defn grid [grid owner]
   (reify
     om/IRenderState
@@ -265,6 +270,41 @@
        dom/div nil
        (om/build-all row grid {:init-state state})))))
 
+(defn table-cell [ctx owner]
+  (reify
+    om/IRenderState
+    (render-state [this state]
+      (dom/td nil
+              (om/build editable-input ctx))
+  )))
+
+(defn table-row [row owner]
+  (reify
+    om/IRenderState
+    (render-state [this state]
+      (apply
+       dom/tr nil
+       (om/build-all table-cell row)))))
+
+(defn grid-table [grid owner]
+  (reify
+    om/IRenderState
+    (render-state [this state]
+      (dom/table #js {:className "grid-table"}
+                 (apply
+                  dom/tbody nil
+                  (om/build-all table-row grid)
+                  )
+                            ))
+    ))
+
+(defn design-view [app owner]
+  (reify
+    om/IRenderState
+    (render-state [this state]
+      (om/build grid-table (:grid app))
+      )))
+
 (defn status-bar [app owner]
   (reify
     om/IRender
@@ -272,7 +312,7 @@
       (dom/div #js {:className "status-bar"}
                (dom/span #js {:className "life"} (str "Leben: " (get-in app [:hero :life]) "%"))
                (dom/button #js {:onClick (fn [e] (do
-                                                   (om/transact! app (fn [_] default-data))
+                                                   (om/transact! app [:hero] (fn [_] default-hero))
                                                    (.. js/document (querySelector ".grid") (focus))
                                                    false))
                                 }
@@ -305,6 +345,10 @@
     )
   )
 
+(defn add-event-listeners [app]
+  #js {:className "grid" :tabIndex 0 :onKeyUp (fn [e] (stop-moving e app)) :onKeyDown (fn [e] (start-moving e app) (.preventDefault e))}
+  )
+
 (defn main []
   (om/root
    (fn [app owner]
@@ -318,14 +362,14 @@
                     (dom/h1 #js {:className "banner won"} "YOU DID IT!")
                     )
                   (om/build status-bar app)
-                  (if (get-in app [:design-game])
-                    (dom/div #js {:className "grid on-top"}
-                             (om/build grid (:grid app) {:init-state {:design true}}))
-
-                    (dom/div #js {:className "grid" :tabIndex 0 :onKeyUp (fn [e] (stop-moving e app)) :onKeyDown (fn [e] (start-moving e app) (.preventDefault e))}
+                  (dom/div (if (get-in app [:design-game]) nil (add-event-listeners app))
                              (om/build hero app)
-                             (om/build grid (:grid app))
-                             )))
+                             (if (get-in app [:design-game])
+                               (om/build design-view app)
+                               ;;(om/build grid-table (:grid app))
+                               (om/build grid (:grid app))
+                               )
+                             ))
          )))
    app-state
    {:target (. js/document (getElementById "app"))}))
