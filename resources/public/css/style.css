@@ -356,9 +356,7 @@ td,
 th {
   padding: 0;
 }
-body {
-  background: #000;
-}
+
 #app {
   width: 1400px;
   position: relative;
@@ -395,27 +393,11 @@ h1 {
   width: 1400px;
   background: #516E8E;
 }
-.grid.on-top {
-  position: absolute;
-  z-index: 1;
+
+.grid-table {
+  outline: none;
 }
-.grid.on-top .cell {
-  background: #000;
-  box-shadow: inset 0px 0px 1px #777;
-}
-.grid.on-top .cell input {
-  width: 70px;
-  padding: 0px;
-  border: none;
-  height: 70px;
-  margin: 0px;
-  display: block;
-  background: none;
-  color: #535353;
-  font-family: monospace;
-  font-size: 60px;
-  text-align: center;
-}
+
 .row {
   float: left;
   width: 1400px;

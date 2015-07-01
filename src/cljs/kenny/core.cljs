@@ -302,7 +302,9 @@
   (reify
     om/IRenderState
     (render-state [this state]
-      (om/build grid-table (:grid app))
+      (dom/div nil
+               (dom/h2 nil "Der Raster")
+               (om/build grid-table (:grid app)))
       )))
 
 (defn status-bar [app owner]
