@@ -1,6 +1,7 @@
 (ns kenny.core
   (:require [om.core :as om :include-macros true]
             [om.dom :as dom :include-macros true]
+            [cognitect.transit :as transit]
             [alandipert.storage-atom :refer [local-storage load-local-storage]]
             [cljs.core.async :as async :refer[<! chan sliding-buffer put! close! timeout]])
 
@@ -65,6 +66,7 @@
                    :settings {:bounce [3]
                               :red-trampete [5]
                               :blue-trampete [3]
+                              :time [60]
                               }})
 
 (def app-state (local-storage (atom default-data) "game"))
@@ -198,6 +200,16 @@
     )
   )
 
+(defn time-up? [settings app hero]
+  (if (> 0 (first (get-in settings [:time])))
+    (merge hero {:life 0})
+    (do
+      (om/transact! app [:settings :time 0] (fn [old-time] (do
+                                                             (console-log old-time)
+                                                             (- old-time 0.04))))
+      hero
+          )))
+
 (defn game-over? [original-hero hero]
   (if (or (> 0 (get-in hero [:position :bottom]))
           (> 0 (get-in hero [:life])))
@@ -217,6 +229,7 @@
               bounce (get-in @app [:settings :bounce])
               red-trampete (get-in @app [:settings :red-trampete])
               blue-trampete (get-in @app [:settings :blue-trampete])
+              settings (get-in @app [:settings])
               new-hero (-> original-hero
                            grav
                            ((partial vertical-block original-hero))
@@ -226,6 +239,7 @@
                            ((partial on-blue-trampete? blue-trampete))
                            ((partial on-red-trampete? red-trampete))
                            spike-damage
+                           ((partial time-up? settings app))
                            ((partial home? original-hero))
                            ((partial game-over? original-hero))
                            )]
@@ -321,7 +335,7 @@
     (render-state [this state]
       (apply
        dom/tr nil
-       (om/build-all table-cell row {:init-state {:options [[0] [1] [2] [3] [4] [9]]}})))))
+       (om/build-all table-cell row {:init-state {:options [[0] [1] [2] [3] [4] [5]]}})))))
 
 (defn grid-table [grid owner]
   (reify
@@ -349,10 +363,62 @@
                                     (dom/th nil "Blue Trampoline")
                                     (om/build table-cell (:blue-trampete settings) {:init-state {:options (mapv (fn [i] [i]) (range 1 7))}})
                                     )
+                            (dom/tr nil
+                                    (dom/th nil "Spiel Dauer")
+                                    (om/build table-cell (:time settings) {:init-state {:options (mapv (fn [i] [i]) (range 30 61))}})
+                                    )
                             )
 
                  )
       ))
+  )
+
+
+(def json-writer (transit/writer :json-verbose))
+
+(defn download-href []
+  (let [json (transit/write json-writer (load-local-storage "game"))]
+    (str "data:application/json;charset=utf-8," (clojure.string/replace json " " "\u00a0"))))
+
+(defn download-page [e]
+  (let [a-tag (.. e -target)]
+    (aset a-tag "download" "website.json")
+    (aset a-tag "href" (download-href))))
+
+(defn preview-or-tutorial [app]
+  (dom/li nil
+          (dom/button #js {:className "btn btn-success navbar-btn" :onClick (fn [e] (om/transact! app :show-help (fn [bool] (not bool))) false)}
+                 (if (app :show-help)
+                   "Website"
+                   "Tutorial"))))
+
+(defn update-storage [json]
+  (let [transit-reader (transit/reader :json)
+        user-data (transit/read transit-reader (clojure.string/replace json "\u00a0" " "))
+        ]
+    (swap! app-state (fn [_] user-data))
+    ))
+
+(defn handle-upload [e]
+  (let [file-field (.. e -target)
+        file (aget file-field "files" 0)
+        file-reader (js/FileReader.)
+        content (.readAsText file-reader file)]
+    (set! (.-onload file-reader) (fn [] (update-storage (aget file-reader "result"))))
+    false))
+
+(defn upload-menu-item []
+  (dom/li nil
+          (dom/div #js {:className "btn-file btn btn-success navbar-btn"}
+                   (dom/form #js {:method "post" :encType "multipart/form-data"}
+                             (dom/input #js {:type "file" :name "data" :className "file-input" :onChange handle-upload}))
+                   (dom/span nil "Hochladen")
+                   )))
+
+
+(defn reset-page [e]
+  (reset! app-state default-data)
+  false
   )
 
 (defn design-view [app owner]
@@ -360,9 +426,22 @@
     om/IRenderState
     (render-state [this state]
       (dom/div nil
+               (dom/h2 #js {:href "#"} "Menu")
+               (dom/ul nil
+                       (dom/li nil
+                               (dom/a #js {:href "#" :onClick download-page} "Herunterladen")
+                               )
+                       (dom/li nil
+                               (dom/a #js {:href "#" :onClick reset-page} "Zürucksetzen")
+                               )
+                       (dom/li nil
+                               (dom/form #js {:method "post" :encType "multipart/form-data"}
+                                         (dom/input #js {:type "file" :name "data" :className "file-input" :onChange handle-upload}))
+                               )
+                       )
                (dom/h2 nil "Der Raster")
                (om/build grid-table (:grid app))
-               (dom/h2 nil "Kenny")
+               (dom/h2 nil "Einstellungen")
                (om/build settings-form (:settings app))
                )
       )))
@@ -372,22 +451,26 @@
     om/IRender
     (render [this]
       (dom/div #js {:className "status-bar"}
+               (dom/span #js {:className "life"} (str "Time: " (ceil (first (get-in app [:settings :time])))))
                (dom/span #js {:className "life"} (str "Leben: " (get-in app [:hero :life]) "%"))
                (dom/button #js {:onClick (fn [e] (do
                                                    (om/transact! app [:hero] (fn [_] default-hero))
-                                                   (.. js/document (querySelector ".grid") (focus))
                                                    false))
+
                                 }
                            "Neu Starten")
                (dom/button #js {:onClick (fn [e] (do
                                                    (om/transact! app :design-game (fn [bool] (not bool)))
-                                                   (.. js/document (querySelector ".grid") (focus))
                                                    false
                                                    )
                                            )}
                            (if (app :design-game)
                              "Züruck"
                              "Entwerfen"))
+
+
+
+
                )))
   )
 
