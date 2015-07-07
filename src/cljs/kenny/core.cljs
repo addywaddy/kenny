@@ -74,6 +74,9 @@
 (defn ceil [i]
   (.ceil js/Math i))
 
+(defn round [i]
+  (.round js/Math i))
+
 (defn floor [i]
   (.floor js/Math i))
 
@@ -172,10 +175,22 @@
     hero
     ))
 
-(defn on-ground? [hero]
+(defn nearest-vertical-border [bottom]
+  (* (round (/ bottom 70)) 70)
+  )
+
+(defn on-ground? [original-hero hero]
   (if (on-block? (get-in hero [:position]) 1)
     (update-in hero [:dy] + 0.75)
-    hero
+    (if (> 0 (get-in hero [:dy]))
+      (if (in-block? (get-in hero [:position]) 1)
+        (let [new-hero (update-in hero [:dy] + 0.75)]
+          (update-in new-hero [:position :bottom] (fn [_] (nearest-vertical-border (get-in original-hero [:position :bottom]))))
+          )
+        hero
+        )
+      hero
+      )
     ))
 
 (defn spike-damage [hero]
@@ -213,7 +228,7 @@
   )
 
 (defn home? [original-hero hero]
-  (if (on-block? (get-in original-hero [:position]) 5)
+  (if (in-block? (get-in original-hero [:position]) 5)
     (merge original-hero {:game-won true})
     hero
     )
@@ -255,13 +270,13 @@
                            ;;((partial bouncing bounce))
                            ((partial on-blue-trampete? blue-trampete))
                            ((partial on-red-trampete? red-trampete))
-                           on-ground?
                            grav
-                           ;;spike-damage
-                           ;;((partial time-up? original-hero app))
-                           ;;((partial home? original-hero))
+                           ((partial on-ground? original-hero))
+                           spike-damage
+                           ((partial time-up? original-hero app))
+                           ((partial home? original-hero))
                            ((partial blocked? original-hero))
-                           ;;((partial game-over? original-hero))
+                           ((partial game-over? original-hero))
                            )]
           (om/transact! app [:hero] (fn [hero] (merge hero new-hero)))
           )
@@ -376,11 +391,11 @@
                  (dom/tbody nil
                             (dom/tr nil
                                     (dom/th nil "Red Trampoline")
-                                    (om/build table-cell (get-in app [:settings :red-trampete]) {:init-state {:options (mapv (fn [i] [i]) (range 1 7))}})
+                                    (om/build table-cell (get-in app [:settings :red-trampete]) {:init-state {:options (mapv (fn [i] [i]) (range 1 5))}})
                                     )
                             (dom/tr nil
                                     (dom/th nil "Blue Trampoline")
-                                    (om/build table-cell (get-in app [:settings :blue-trampete]) {:init-state {:options (mapv (fn [i] [i]) (range 1 7))}})
+                                    (om/build table-cell (get-in app [:settings :blue-trampete]) {:init-state {:options (mapv (fn [i] [i]) (range 1 5))}})
                                     )
                             (dom/tr nil
                                     (dom/th nil "Spiel Dauer")
