@@ -56,6 +56,7 @@
    :life 100
    :position (hero-start-position grid-content)
    :game-won false
+   :time [60]
    }
   )
 
@@ -66,7 +67,6 @@
                    :settings {:bounce [3]
                               :red-trampete [5]
                               :blue-trampete [3]
-                              :time [60]
                               }})
 
 (def app-state (local-storage (atom default-data) "game"))
@@ -200,15 +200,14 @@
     )
   )
 
-(defn time-up? [settings app hero]
-  (if (> 0 (first (get-in settings [:time])))
-    (merge hero {:life 0})
-    (do
-      (om/transact! app [:settings :time 0] (fn [old-time] (do
-                                                             (console-log old-time)
-                                                             (- old-time 0.04))))
-      hero
-          )))
+(defn time-up? [original-hero app hero]
+
+    (if (> 0 (get-in original-hero [:time 0]))
+      (update-in hero [:life] (fn [_] 0))
+      (update-in hero [:time 0] - 0.04)
+      )
+
+  )
 
 (defn game-over? [original-hero hero]
   (if (or (> 0 (get-in hero [:position :bottom]))
@@ -235,11 +234,11 @@
                            ((partial vertical-block original-hero))
                            move-left
                            move-right
-                           ((partial bouncing bounce))
+                           ;;((partial bouncing bounce))
                            ((partial on-blue-trampete? blue-trampete))
                            ((partial on-red-trampete? red-trampete))
                            spike-damage
-                           ((partial time-up? settings app))
+                           ((partial time-up? original-hero app))
                            ((partial home? original-hero))
                            ((partial game-over? original-hero))
                            )]
@@ -349,7 +348,7 @@
                             ))
     ))
 
-(defn settings-form [settings]
+(defn settings-form [app]
   (reify
     om/IRenderState
     (render-state [this state]
@@ -357,15 +356,15 @@
                  (dom/tbody nil
                             (dom/tr nil
                                     (dom/th nil "Red Trampoline")
-                                    (om/build table-cell (:red-trampete settings) {:init-state {:options (mapv (fn [i] [i]) (range 1 7))}})
+                                    (om/build table-cell (get-in app [:settings :red-trampete]) {:init-state {:options (mapv (fn [i] [i]) (range 1 7))}})
                                     )
                             (dom/tr nil
                                     (dom/th nil "Blue Trampoline")
-                                    (om/build table-cell (:blue-trampete settings) {:init-state {:options (mapv (fn [i] [i]) (range 1 7))}})
+                                    (om/build table-cell (get-in app [:settings :blue-trampete]) {:init-state {:options (mapv (fn [i] [i]) (range 1 7))}})
                                     )
                             (dom/tr nil
                                     (dom/th nil "Spiel Dauer")
-                                    (om/build table-cell (:time settings) {:init-state {:options (mapv (fn [i] [i]) (range 30 61))}})
+                                    (om/build table-cell (get-in app [:hero :time]) {:init-state {:options (mapv (fn [i] [i]) (range 30 61))}})
                                     )
                             )
 
@@ -442,7 +441,7 @@
                (dom/h2 nil "Der Raster")
                (om/build grid-table (:grid app))
                (dom/h2 nil "Einstellungen")
-               (om/build settings-form (:settings app))
+               (om/build settings-form app)
                )
       )))
 
@@ -451,7 +450,7 @@
     om/IRender
     (render [this]
       (dom/div #js {:className "status-bar"}
-               (dom/span #js {:className "life"} (str "Time: " (ceil (first (get-in app [:settings :time])))))
+               (dom/span #js {:className "life"} (str "Time: " (ceil (get-in app [:hero :time 0]))))
                (dom/span #js {:className "life"} (str "Leben: " (get-in app [:hero :life]) "%"))
                (dom/button #js {:onClick (fn [e] (do
                                                    (om/transact! app [:hero] (fn [_] default-hero))
