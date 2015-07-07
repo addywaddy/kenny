@@ -92,21 +92,22 @@
      ]
     ))
 
-(defn on-supporting-block? [position]
+(defn on-block? [position block-no]
   (let [[left right] (hero-feet-coords position)
         app @app-state
         below-left (update-in left [0] + 1)
         below-right (update-in right [0] + 1)]
-    (some #{[1]} [(get-in app (into [:grid] left)) (get-in app (into [:grid] right))]
+    (some #{[block-no]} [(get-in app (into [:grid] below-left)) (get-in app (into [:grid] below-right))]
           )))
 
-(defn on-block? [position, block-no]
+(defn in-block? [position block-no]
   (let [[left right] (hero-feet-coords position)
-        app @app-state
-        below-left (update-in left [0] + 1)
-        below-right (update-in right [0] + 1)]
+        app @app-state]
     (some #{[block-no]} [(get-in app (into [:grid] left)) (get-in app (into [:grid] right))]
           )))
+
+(defn on-supporting-block? [position]
+  (on-block? position 1))
 
 (defn moving? [hero]
   (not= 0 (hero :dx))
@@ -138,6 +139,12 @@
       )
     ))
 
+(defn blocked? [original-hero hero]
+  (if (in-block? (get-in hero [:position]) 1)
+    (update-in hero [:position :left] (fn[_] (get-in original-hero [:position :left])))
+    hero
+    ))
+
 (defn move-right [hero]
   (let [left-position (get-in hero [:position :left])]
     (if (moving? hero)
@@ -149,19 +156,30 @@
     ))
 
 (defn on-red-trampete? [red-trampete hero]
-  (if (on-block? (get-in hero [:position]) 3)
-    (update-in hero [:dy] (fn [old-dy] (+ old-dy (-> red-trampete first))))
+  (if (in-block? (get-in hero [:position]) 3)
+    (let [new-hero (update-in hero [:dy] (fn [old-dy] (+ old-dy (-> red-trampete first))))]
+      ;;(update-in new-hero [:position :bottom] + 1)
+      new-hero
+      )
     hero
     ))
 
 (defn on-blue-trampete? [blue-trampete hero]
-  (if (on-block? (get-in hero [:position]) 4)
-    (update-in hero [:dy] (fn [old-dy] (+ old-dy (-> blue-trampete first))))
+  (if (in-block? (get-in hero [:position]) 4)
+    (let [new-hero (update-in hero [:dy] (fn [old-dy] (+ old-dy (-> blue-trampete first))))]
+      (update-in new-hero [:position :bottom] + 1)
+      )
+    hero
+    ))
+
+(defn on-ground? [hero]
+  (if (on-block? (get-in hero [:position]) 1)
+    (update-in hero [:dy] + 0.75)
     hero
     ))
 
 (defn spike-damage [hero]
-  (if (on-block? (get-in hero [:position]) 2)
+  (if (in-block? (get-in hero [:position]) 2)
     (update-in hero [:life] - 1)
     hero
     ))
@@ -177,8 +195,9 @@
   )
 
 (defn vertical-block [original-hero new-hero]
-  (let [original-bottom (get-in original-hero [:position :bottom])
-        supported (on-supporting-block? (update-in (original-hero :position) [:bottom] - 1))]
+  (let [original-position (get-in original-hero [:position])
+        original-bottom (get-in original-hero [:position :bottom])
+        supported (on-supporting-block? original-position)]
     (if supported
       (let [nearest-vertical-border (* (ceil (/ original-bottom 70)) 70)
             newer-hero (update-in new-hero [:position :bottom] (fn [_] nearest-vertical-border))]
@@ -189,7 +208,7 @@
     ))
 
 (defn logger [key hero]
-  ;;(console-log {key (get-in hero [:position :left])})
+  (console-log {key (get-in hero [:position :left])})
   hero
   )
 
@@ -210,9 +229,9 @@
   )
 
 (defn game-over? [original-hero hero]
-  (if (or (> 0 (get-in hero [:position :bottom]))
-          (> 0 (get-in hero [:life])))
-    (merge original-hero {:life 0})
+  (if (or (> 0 (get-in original-hero [:position :bottom]))
+          (> 0 (get-in original-hero [:life])))
+    (update-in hero [:life] (fn [_] 0))
     hero
     )
   )
@@ -230,19 +249,20 @@
               blue-trampete (get-in @app [:settings :blue-trampete])
               settings (get-in @app [:settings])
               new-hero (-> original-hero
-                           grav
-                           ((partial vertical-block original-hero))
+                           ;;((partial vertical-block original-hero))
                            move-left
                            move-right
                            ;;((partial bouncing bounce))
                            ((partial on-blue-trampete? blue-trampete))
                            ((partial on-red-trampete? red-trampete))
-                           spike-damage
-                           ((partial time-up? original-hero app))
-                           ((partial home? original-hero))
-                           ((partial game-over? original-hero))
+                           on-ground?
+                           grav
+                           ;;spike-damage
+                           ;;((partial time-up? original-hero app))
+                           ;;((partial home? original-hero))
+                           ((partial blocked? original-hero))
+                           ;;((partial game-over? original-hero))
                            )]
-
           (om/transact! app [:hero] (fn [hero] (merge hero new-hero)))
           )
         (recur)
