@@ -520,14 +520,17 @@
 (defn start-moving [e app]
   (condp = (aget e "keyCode")
     88 (om/update! app [:hero :dx] 5)
+    89 (om/update! app [:hero :dx] -5)
     90 (om/update! app [:hero :dx] -5)
     nil
     )
   )
 
 (defn stop-moving [e app]
+    (println (aget e "keyCode"))
   (condp = (aget e "keyCode")
     88 (om/update! app [:hero :dx] 0)
+    89 (om/update! app [:hero :dx] 0)
     90 (om/update! app [:hero :dx] 0)
     nil
     )
