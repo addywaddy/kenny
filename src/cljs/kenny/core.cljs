@@ -247,9 +247,9 @@
   )
 
 (defn game-over? [original-hero hero]
-  (if (or (> 0 (get-in original-hero [:position :bottom]))
-          (> 0 (get-in original-hero [:life])))
-    (update-in hero [:life] (fn [_] 0))
+  (if (or (> 0 (get-in hero [:position :bottom]))
+          (> 0 (get-in hero [:life])))
+    (update-in original-hero [:life] (fn [_] 0))
     hero
     )
   )
@@ -267,7 +267,7 @@
     (will-mount [_]
       (console-log "mounting...")
       (go-loop []
-        (<! (timeout 40))
+        (<! (timeout 50))
         (let [
               grid-content (get-in @app [:grid])
               original-hero (initial-position grid-content (get-in @app [:hero]))
