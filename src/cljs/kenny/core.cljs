@@ -360,6 +360,10 @@
 
 (defn grid [grid owner]
   (reify
+    om/IDidMount
+    (did-mount [this]
+      (.. js/document (querySelector ".grid") (focus))
+      )
     om/IRenderState
     (render-state [this state]
       (apply
@@ -498,6 +502,7 @@
                (dom/span #js {:className "life"} (str "Leben: " (get-in app [:hero :life]) "%"))
                (dom/button #js {:onClick (fn [e] (do
                                                    (om/transact! app [:hero] (fn [_] default-hero))
+                                                   (.. js/document (querySelector ".grid") (focus))
                                                    false))
 
                                 }
