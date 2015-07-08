@@ -180,17 +180,11 @@
   )
 
 (defn on-ground? [original-hero hero]
-  (if (on-block? (get-in hero [:position]) 1)
-    (update-in hero [:dy] + 0.75)
-    (if (> 0 (get-in hero [:dy]))
-      (if (in-block? (get-in hero [:position]) 1)
-        (let [new-hero (update-in hero [:dy] + 0.75)]
+  (if (in-block? (get-in hero [:position]) 1)
+    (let [new-hero (update-in hero [:dy] + 0.75)]
           (update-in new-hero [:position :bottom] (fn [_] (nearest-vertical-border (get-in original-hero [:position :bottom]))))
           )
-        hero
-        )
-      hero
-      )
+    hero
     ))
 
 (defn spike-damage [hero]
