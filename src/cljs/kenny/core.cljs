@@ -64,7 +64,7 @@
                    :hero default-hero
                    :design-game false
                    :grid grid-content
-                   :settings {:bounce [3]
+                   :settings {
                               :red-trampete [5]
                               :blue-trampete [3]
                               }})
@@ -271,7 +271,6 @@
         (let [
               grid-content (get-in @app [:grid])
               original-hero (initial-position grid-content (get-in @app [:hero]))
-              bounce (get-in @app [:settings :bounce])
               red-trampete (get-in @app [:settings :red-trampete])
               blue-trampete (get-in @app [:settings :blue-trampete])
               settings (get-in @app [:settings])
@@ -500,13 +499,14 @@
       (dom/div #js {:className "status-bar"}
                (dom/span #js {:className "life"} (str "Time: " (ceil (get-in app [:hero :time 0]))))
                (dom/span #js {:className "life"} (str "Leben: " (get-in app [:hero :life]) "%"))
-               (dom/button #js {:onClick (fn [e] (do
-                                                   (om/transact! app [:hero] (fn [_] default-hero))
-                                                   (.. js/document (querySelector ".grid") (focus))
-                                                   false))
+               (when-not (app :design-game)
+                 (dom/button #js {:onClick (fn [e] (do
+                                                     (om/transact! app [:hero] (fn [_] default-hero))
+                                                     (.. js/document (querySelector ".grid") (focus))
+                                                     false))
 
-                                }
-                           "Neu Starten")
+                                  }
+                             "Spiel starten!"))
                (dom/button #js {:onClick (fn [e] (do
                                                    (om/transact! app :design-game (fn [bool] (not bool)))
                                                    false
@@ -552,11 +552,12 @@
        om/IRender
        (render [_]
          (dom/div nil
-                  (when (>= 0 (get-in app [:hero :life]))
-                    (dom/h1 #js {:className "banner lost"} "GAME OVER!"))
-                  (when (get-in app [:hero :game-won])
-                    (dom/h1 #js {:className "banner won"} "YOU DID IT!")
-                    )
+                  (when-not (get-in app [:design-game])
+                    (when (>= 0 (get-in app [:hero :life]))
+                      (dom/h1 #js {:className "banner lost"} "FAIL!"))
+                    (when (get-in app [:hero :game-won])
+                      (dom/h1 #js {:className "banner won"} "YOU DID IT!")
+                      ))
                   (om/build status-bar app)
                   (dom/div (if (get-in app [:design-game]) nil (add-event-listeners app))
                            (om/build hero app)
