@@ -411,7 +411,7 @@
                                     )
                             (dom/tr nil
                                     (dom/th nil "Spiel Dauer")
-                                    (om/build table-cell (get-in app [:hero :time]) {:init-state {:options (mapv (fn [i] [i]) (range 30 61))}})
+                                    (om/build table-cell (get-in app [:hero :time]) {:init-state {:options (mapv (fn [i] [i]) (range 30 130 10))}})
                                     )
                             )
 
