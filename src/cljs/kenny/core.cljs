@@ -409,10 +409,7 @@
                                     (dom/th nil "Blue Trampoline")
                                     (om/build table-cell (get-in app [:settings :blue-trampete]) {:init-state {:options (mapv (fn [i] [i]) (range 1 5))}})
                                     )
-                            (dom/tr nil
-                                    (dom/th nil "Spiel Dauer")
-                                    (om/build table-cell (get-in app [:hero :time]) {:init-state {:options (mapv (fn [i] [i]) (range 30 130 10))}})
-                                    )
+
                             )
 
                  )
