@@ -54,7 +54,7 @@
   {:dx 0
    :dy 0
    :life 100
-   :position (hero-start-position grid-content)
+   ;;:position (hero-start-position grid-content)
    :game-won false
    :time [60]
    }
@@ -251,6 +251,13 @@
     )
   )
 
+(defn initial-position [grid-content hero]
+  (if (hero :position)
+    hero
+    (merge hero {:position (hero-start-position grid-content)})
+    )
+  )
+
 (defn hero [app owner]
   (reify
     om/IWillMount
@@ -258,7 +265,9 @@
       (console-log "mounting...")
       (go-loop []
         (<! (timeout 40))
-        (let [original-hero (get-in @app [:hero])
+        (let [
+              grid-content (get-in @app [:grid])
+              original-hero (initial-position grid-content (get-in @app [:hero]))
               bounce (get-in @app [:settings :bounce])
               red-trampete (get-in @app [:settings :red-trampete])
               blue-trampete (get-in @app [:settings :blue-trampete])
