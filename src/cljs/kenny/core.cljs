@@ -238,7 +238,10 @@
 
     (if (> 0 (get-in original-hero [:time 0]))
       (update-in hero [:life] (fn [_] 0))
-      (update-in hero [:time 0] - 0.04)
+      (if (get-in @app [:design-game])
+        hero
+        (update-in hero [:time 0] - 0.04)
+        )
       )
 
   )
