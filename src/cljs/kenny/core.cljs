@@ -27,8 +27,8 @@
                    [[0] [0] [0] [0] [0] [0] [0] [0] [0] [0] [0] [0] [0] [0] [0] [0] [0] [0] [0] [0]]
                    [[0] [0] [0] [0] [0] [0] [0] [0] [0] [0] [0] [0] [0] [0] [0] [0] [0] [0] [0] [0]]
                    [[0] [0] [0] [0] [0] [0] [0] [0] [0] [0] [0] [0] [0] [0] [0] [0] [0] [0] [0] [0]]
-                   [[0] [0] [0] [2] [2] [3] [4] [0] [0] [0] [0] [0] [0] [0] [0] [0] [0] [0] [0] [0]]
-                   [[1] [0] [1] [1] [1] [1] [1] [1] [1] [1] [1] [1] [1] [1] [1] [1] [1] [1] [1] [1]]
+                   [[0] [0] [0] [0] [0] [0] [0] [0] [0] [0] [0] [0] [0] [0] [0] [0] [0] [0] [0] [0]]
+                   [[1] [1] [1] [1] [1] [1] [1] [1] [1] [1] [1] [1] [1] [1] [1] [1] [1] [1] [1] [1]]
                    ])
 
 (defn indices [pred coll]
@@ -269,10 +269,8 @@
               blue-trampete (get-in @app [:settings :blue-trampete])
               settings (get-in @app [:settings])
               new-hero (-> original-hero
-                           ;;((partial vertical-block original-hero))
                            move-left
                            move-right
-                           ;;((partial bouncing bounce))
                            ((partial on-blue-trampete? blue-trampete))
                            ((partial on-red-trampete? red-trampete))
                            grav
@@ -472,9 +470,6 @@
                                (dom/a #js {:href "#" :onClick download-page} "Herunterladen")
                                )
                        (dom/li nil
-                               (dom/a #js {:href "#" :onClick reset-page} "Zürucksetzen")
-                               )
-                       (dom/li nil
                                (dom/form #js {:method "post" :encType "multipart/form-data"}
                                          (dom/input #js {:type "file" :name "data" :className "file-input" :onChange handle-upload}))
                                )
@@ -483,6 +478,11 @@
                (om/build grid-table (:grid app))
                (dom/h2 nil "Einstellungen")
                (om/build settings-form app)
+               (dom/h2 nil "Danger!")
+               (dom/ul nil
+                       (dom/li nil
+                                (dom/a #js {:href "#" :onClick reset-page} "Zürucksetzen"))
+                               )
                )
       )))
 
