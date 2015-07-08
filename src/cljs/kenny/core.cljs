@@ -546,12 +546,11 @@
        om/IRender
        (render [_]
          (dom/div nil
-                  (when-not (get-in app [:design-game])
-                    (when (>= 0 (get-in app [:hero :life]))
-                      (dom/h1 #js {:className "banner lost"} "FAIL!"))
+                  (when (>= 0 (get-in app [:hero :life]))
+                    (dom/h1 #js {:className "banner lost"} "FAIL!"))
                     (when (get-in app [:hero :game-won])
                       (dom/h1 #js {:className "banner won"} "YOU DID IT!")
-                      ))
+                      )
                   (om/build status-bar app)
                   (dom/div (if (get-in app [:design-game]) nil (add-event-listeners app))
                            (om/build hero app)
