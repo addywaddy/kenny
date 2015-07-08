@@ -84,7 +84,7 @@
   #js {:bottom (get-in app [:hero :position :bottom])
        :left (get-in app [:hero :position :left])
        :display (if (get-in app [:design-game]) "none" "block")
-       :z-index 10})
+       :zIndex 10})
 
 (defn hero-feet-coords [position]
   (let [bottom (position :bottom)
