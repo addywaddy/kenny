@@ -418,33 +418,33 @@ table select {
   background-position: left bottom;
 }
 .cell.ground {
-  background-image: url(/img/tiles/ground.png);
+  background-image: url(../img/tiles/ground.png);
 }
 .cell.bridge {
-  background-image: url(/img/tiles/bridge.png);
+  background-image: url(../img/tiles/bridge.png);
 }
 .cell.fence {
-  background-image: url(/img/tiles/fence.png);
+  background-image: url(../img/tiles/fence.png);
 }
 .cell.lava {
   opacity: 0.9;
-  background-image: url(/img/tiles/lava.png);
+  background-image: url(../img/tiles/lava.png);
 }
 .cell.water {
   opacity: 0.8;
-  background-image: url(/img/tiles/water.png);
+  background-image: url(../img/tiles/water.png);
 }
 .cell.spikes {
-  background-image: url(/img/tiles/spikes.png);
+  background-image: url(../img/tiles/spikes.png);
 }
 .cell.exit {
-  background-image: url(/img/tiles/bonus.png);
+  background-image: url(../img/tiles/bonus.png);
 }
 .cell.blue-trampete {
-  background-image: url(/img/tiles/switch_blue_on.png);
+  background-image: url(../img/tiles/switch_blue_on.png);
 }
 .cell.red-trampete {
-  background-image: url(/img/tiles/switch_red_on.png);
+  background-image: url(../img/tiles/switch_red_on.png);
 }
 .hero {
   z-index: 0;
@@ -452,7 +452,7 @@ table select {
   width: 70px;
   height: 92px;
   position: absolute;
-  background-image: url(/img/tiles/character/sheet/walk_sheet.png);
+  background-image: url(../img/tiles/character/sheet/walk_sheet.png);
   background-repeat: no-repeat;
 }
 .hero.left {
